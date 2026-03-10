@@ -7,5 +7,5 @@ export const calculateTotal = (items) => {
 }
 
 export const formatPrice = (price) => {
-  return `$${parseFloat(price).toFixed(2)}`
+  return `fcfa${parseFloat(price).toFixed(2)}`
 }

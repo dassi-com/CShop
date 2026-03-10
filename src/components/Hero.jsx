@@ -20,7 +20,7 @@ const Hero = () => {
 
   return (
     <div className="hero min-h-[500px]" style={{
-      backgroundImage: 'url(https://images.unsplash.com/photo-1465101162946-4377e57745c3?w=1200)',
+      backgroundImage: 'url("")',
     }}>
       <div className="hero-overlay bg-opacity-60"></div>
       <div className="hero-content text-center text-neutral-content">

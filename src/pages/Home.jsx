@@ -8,6 +8,7 @@ const Home = () => {
   const [products, setProducts] = useState(initialProducts)
 
   useEffect(() => {
+
     const adminProducts = JSON.parse(localStorage.getItem('adminProducts') || '[]')
     if (adminProducts.length > 0) {
       setProducts([...initialProducts, ...adminProducts])
@@ -20,7 +21,7 @@ const Home = () => {
       <div className="container mx-auto px-4">
         <CarouselBanner />
         <section id="products-section" className="my-16 scroll-mt-20">
-          <h2 className="text-3xl font-bold text-center mb-10 text-fuchsia-300">
+          <h2 className="text-3xl font-bold text-center mb-10 text-fuchsia-500">
             Nos Produits Populaires
           </h2>
           <p className="text-center text-gray-400 mb-12 max-w-2xl mx-auto">
