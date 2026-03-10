@@ -2,7 +2,7 @@ import React from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useCart } from '../context/CartContext'
-import { formatPrice } from '../utils/cartUtils'
+import { formatPrice } from '../utils/CartUtils'
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart()

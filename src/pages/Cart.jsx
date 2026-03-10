@@ -2,7 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { Trash2, Plus, Minus, ArrowLeft } from 'lucide-react'
 import { useCart } from '../context/CartContext'
-import { calculateSubtotal, calculateTotal, formatPrice } from '../utils/cartUtils'
+import { calculateSubtotal, calculateTotal, formatPrice } from '../utils/CartUtils'
 
 const Cart = () => {
   const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart()
