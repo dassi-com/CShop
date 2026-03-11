@@ -267,16 +267,7 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
             </p>
           </div>
           
-          {/* Informations de démo */}
-          <div className="mt-4 p-3 bg-base-200 rounded-lg border border-base-300">
-            <p className="text-xs text-center text-gray-400">
-              <span className="font-medium text-fuchsia-500">Demo:</span>
-            </p>
-            <p className="text-xs text-center text-gray-400 mt-1">
-              Email: demo@starchop.com<br />
-              Mot de passe: demo123
-            </p>
-          </div>
+
         </form>
       </motion.div>
     </motion.div>
