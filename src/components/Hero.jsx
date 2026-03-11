@@ -19,11 +19,11 @@ const Hero = () => {
   }
 
   return (
-    <div className="hero min-h-[500px]" style={{
-      backgroundImage: 'url("")',
-    }}>
-      <div className="hero-overlay bg-opacity-60"></div>
-      <div className="hero-content text-center text-neutral-content">
+    <div className="hero min-h-[600px] relative overflow-hidden">
+      
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-blue-950 to-black"></div>
+      <div className="absolute inset-0 bg-black/20"></div>
+      <div className="hero-content text-center text-white relative z-10">
         <div className="max-w-md">
           <motion.h1 
             className="mb-5 text-5xl font-bold"
@@ -36,7 +36,7 @@ const Hero = () => {
           </motion.h1>
           
           <motion.p 
-            className="mb-5"
+            className="mb-5 text-gray-200"
             initial="hidden"
             animate="visible"
             variants={textVariants}
@@ -46,7 +46,7 @@ const Hero = () => {
           </motion.p>
           
           <motion.button 
-            className="btn btn-primary bg-fuchsia-350 hover:bg-fuchsia-300 border-none"
+            className="btn btn-primary bg-fuchsia-350 hover:bg-fuchsia-300 border-none text-white"
             initial="hidden"
             animate="visible"
             variants={textVariants}

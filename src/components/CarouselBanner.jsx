@@ -1,35 +1,88 @@
-import React from 'react'
-import { carouselItems } from '../data/products'
+import React, { useState, useEffect } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
-const CarouselBanner = () => {
+const CarouselBanner = ({ images, autoPlay = true, interval = 3000 }) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  // Images par défaut si aucune n'est fournie
+  const defaultImages = [
+    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400",
+     "https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=400",
+     "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
+     "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop",
+     "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&h=400&fit=crop"
+  ]
+
+  const slides = images || defaultImages
+
+  // Auto-défilement
+  useEffect(() => {
+    if (!autoPlay) return
+
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % slides.length)
+    }, interval)
+
+    return () => clearInterval(timer)
+  }, [autoPlay, interval, slides.length])
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length)
+  }
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % slides.length)
+  }
+
   return (
-    <div className="carousel w-full h-64 my-8">
-      {carouselItems.map((item, index) => (
-        <div 
-          key={item.id} 
-          id={`slide${index + 1}`} 
-          className="carousel-item relative w-full"
-        >
-          <img 
-            src={item.image} 
-            className="w-full object-cover" 
-            alt={item.title}
+    <div className="relative w-full h-[400px] overflow-hidden rounded-xl mt-10">
+      {/* Images avec animation */}
+      <AnimatePresence mode="wait">
+        <motion.img
+          key={currentIndex}
+          src={slides[currentIndex]}
+          alt={`Slide ${currentIndex + 1}`}
+          className="absolute w-full h-full object-cover"
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -100 }}
+          transition={{ duration: 0.5 }}
+          onError={(e) => {
+            e.target.src = 'https://via.placeholder.com/1200x400/fuchsia/white?text=Image+non+disponible'
+          }}
+        />
+      </AnimatePresence>
+
+      {/* Flèches de navigation */}
+      <button
+        onClick={goToPrevious}
+        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all duration-300 backdrop-blur-sm"
+      >
+        <ChevronLeft className="w-6 h-6" />
+      </button>
+
+      <button
+        onClick={goToNext}
+        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all duration-300 backdrop-blur-sm"
+      >
+        <ChevronRight className="w-6 h-6" />
+      </button>
+
+      {/* Indicateurs (dots) */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+        {slides.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentIndex(index)}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+              index === currentIndex
+                ? 'w-6 bg-fuchsia-500'
+                : 'bg-white/50 hover:bg-white/80'
+            }`}
           />
-          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-            <div className="text-center text-white">
-              <h3 className="text-3xl font-bold mb-2">{item.title}</h3>
-              <p className="mb-4">{item.description}</p>
-              <button className="btn btn-primary btn-sm">
-                {item.buttonText}
-              </button>
-            </div>
-          </div>
-          <div className="absolute flex justify-between transform -translate-y-1/2 left-5 right-5 top-1/2">
-            <a href={`#slide${index}`} className="btn btn-circle">❮</a>
-            <a href={`#slide${index + 2}`} className="btn btn-circle">❯</a>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

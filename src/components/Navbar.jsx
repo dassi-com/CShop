@@ -29,8 +29,7 @@ const Navbar = () => {
       <div className="navbar bg-base-100 shadow-lg px-4 md:px-8 fixed top-0 left-0 right-0 z-50">
         <div className="navbar-start">
           <Link to="/" className="flex items-center gap-2">
-            <Star className="w-6 h-6 text-fuchsia-500" />
-            <span className="text-xl font-bold">CShop</span>
+            <span className="text-2xl font-bold text-fuchsia-300">CShop</span>
           </Link>
         </div>
         
