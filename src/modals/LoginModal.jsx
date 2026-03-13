@@ -2,23 +2,20 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { X, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import authService from '../services/authService'
 
 const LoginModal = ({ onClose, onOpenRegister }) => {
-  // États pour les champs du formulaire
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  
-  // États pour la gestion des erreurs et du chargement
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
 
-  // Récupérer la fonction login du contexte
   const { login } = useAuth()
+  const navigate = useNavigate()
 
-  // Fonction de validation
   const validateForm = () => {
     const errors = {}
     
@@ -38,13 +35,55 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
     return Object.keys(errors).length === 0
   }
 
-  // Gestionnaire de soumission du formulaire
+  // Fonction pour décoder le token JWT
+  const decodeToken = (token) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error("Erreur décodage token:", error);
+      return null;
+    }
+  };
+
+  // Fonction pour obtenir les infos utilisateur
+  const getUserInfo = (token, email) => {
+    try {
+      const decodedToken = decodeToken(token);
+      console.log("Token décodé:", decodedToken);
+      
+      // Vérifier si l'utilisateur est admin (vous pouvez adapter selon votre logique)
+      const isAdmin = email === 'admin@cshop.com' || decodedToken?.role === 'admin';
+      
+      return {
+        id: decodedToken?.userId || 'unknown',
+        email: email,
+        name: email.split('@')[0],
+        role: isAdmin ? 'admin' : 'user'
+      };
+      
+    } catch (error) {
+      console.error("Erreur création user:", error);
+      return {
+        email: email,
+        name: email.split('@')[0],
+        role: email === 'admin@cshop.com' ? 'admin' : 'user'
+      };
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    e.stopPropagation() // 👈 ESSENTIEL POUR ÉVITER LES CONFLITS
+    
     setError('')
     setFieldErrors({})
 
-    // Valider le formulaire
     if (!validateForm()) {
       return
     }
@@ -52,63 +91,93 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
     setLoading(true)
 
     try {
-      // Appel API via authService
+      console.log("📤 Tentative de connexion avec:", { email })
+      
       const response = await authService.login({ email, password })
       
-      // Vérifier la structure de la réponse
-      if (response.success && response.data) {
-        const { token, user } = response.data
-        
-        // Mettre à jour le contexte d'authentification
-        await login(user)
-        
-        // Fermer le modal
-        onClose()
-      } else {
-        setError(response.message || "Erreur de connexion")
-      }
-    } catch (err) {
-      console.error("Erreur de connexion:", err)
+      console.log("✅ Réponse API reçue:", response)
       
-      // Gestion des différentes erreurs
+      // Vérifier que la réponse est valide
+      if (!response || !response.success) {
+        throw new Error(response?.message || "Erreur de connexion")
+      }
+      
+      // Extraire le token
+      const token = response.token
+      
+      if (!token) {
+        throw new Error("Token non trouvé dans la réponse")
+      }
+      
+      console.log("🔑 Token reçu")
+      
+      // Créer l'objet utilisateur
+      const userData = getUserInfo(token, email)
+      
+      console.log("👤 Données utilisateur:", userData)
+      console.log("👑 Rôle utilisateur:", userData.role)
+      
+      // Mettre à jour le contexte d'authentification
+      await login(userData, token)
+      
+      // Vérifier que onClose est bien une fonction
+      if (typeof onClose === 'function') {
+        onClose() // Fermer le modal
+      } else {
+        console.warn("onClose n'est pas une fonction")
+      }
+      
+      // Rediriger si c'est un admin
+      if (userData.role === 'admin') {
+        console.log("👑 Admin détecté, redirection vers /admin")
+        navigate('/admin', { replace: true })
+      } else {
+        console.log("👤 Utilisateur simple, reste sur la page d'accueil")
+        // Rester sur la page actuelle
+      }
+      
+    } catch (err) {
+      console.error("❌ Erreur de connexion:", err)
+      
       if (err.status === 401) {
         setError("Email ou mot de passe incorrect")
       } else if (err.status === 404) {
         setError("Utilisateur non trouvé")
       } else if (err.status === 500) {
         setError("Erreur serveur. Veuillez réessayer plus tard")
-      } else if (err.message === 'Network Error') {
+      } else if (err.message === 'Network Error' || err.status === 'NETWORK_ERROR') {
         setError("Impossible de se connecter au serveur. Vérifiez votre connexion")
+      } else if (err.message) {
+        setError(err.message)
       } else {
-        setError(err.message || "Une erreur est survenue lors de la connexion")
+        setError("Une erreur est survenue lors de la connexion")
       }
     } finally {
       setLoading(false)
     }
   }
 
-  // Gestionnaire pour ouvrir le modal d'inscription
   const handleOpenRegister = () => {
-    onClose() // Fermer le modal de login
+    if (typeof onClose === 'function') {
+      onClose()
+    }
     if (onOpenRegister) {
-      onOpenRegister() // Ouvrir le modal d'inscription
+      setTimeout(() => onOpenRegister(), 300)
     }
   }
 
-  // Raccourci clavier (Enter pour soumettre)
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !loading) {
-      handleSubmit(e)
-    }
-  }
-
+  // Reste du JSX identique...
   return (
     <motion.div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      onClick={onClose}
+      onClick={() => {
+        if (typeof onClose === 'function') {
+          onClose()
+        }
+      }}
     >
       <motion.div 
         className="bg-base-100 rounded-2xl w-full max-w-md shadow-2xl"
@@ -117,13 +186,16 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
         exit={{ scale: 0.9, y: 20 }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* En-tête du modal */}
         <div className="flex justify-between items-center p-6 border-b border-base-300">
           <h3 className="text-2xl font-bold text-fuchsia-500">
             Connexion
           </h3>
           <button 
-            onClick={onClose} 
+            onClick={() => {
+              if (typeof onClose === 'function') {
+                onClose()
+              }
+            }}
             className="btn btn-ghost btn-sm btn-circle hover:bg-base-300 transition-colors"
             disabled={loading}
           >
@@ -131,9 +203,7 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
           </button>
         </div>
         
-        {/* Corps du formulaire */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Message d'erreur général */}
           {error && (
             <motion.div 
               className="alert alert-error shadow-lg"
@@ -145,7 +215,6 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
             </motion.div>
           )}
           
-          {/* Champ Email */}
           <div className="form-control w-full">
             <label className="label">
               <span className="label-text font-medium flex items-center gap-1">
@@ -161,13 +230,7 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
                   fieldErrors.email ? 'input-error' : ''
                 }`}
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value)
-                  if (fieldErrors.email) {
-                    setFieldErrors({...fieldErrors, email: ''})
-                  }
-                }}
-                onKeyPress={handleKeyPress}
+                onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 autoFocus
               />
@@ -175,15 +238,11 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
             </div>
             {fieldErrors.email && (
               <label className="label">
-                <span className="label-text-alt text-error flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {fieldErrors.email}
-                </span>
+                <span className="label-text-alt text-error">{fieldErrors.email}</span>
               </label>
             )}
           </div>
           
-          {/* Champ Mot de passe */}
           <div className="form-control w-full">
             <label className="label">
               <span className="label-text font-medium flex items-center gap-1">
@@ -199,19 +258,13 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
                   fieldErrors.password ? 'input-error' : ''
                 }`}
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  if (fieldErrors.password) {
-                    setFieldErrors({...fieldErrors, password: ''})
-                  }
-                }}
-                onKeyPress={handleKeyPress}
+                onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
               />
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -219,55 +272,35 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
             </div>
             {fieldErrors.password && (
               <label className="label">
-                <span className="label-text-alt text-error flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {fieldErrors.password}
-                </span>
+                <span className="label-text-alt text-error">{fieldErrors.password}</span>
               </label>
             )}
-            
-            {/* Lien mot de passe oublié */}
-            <div className="flex justify-end mt-1">
-              <button 
-                type="button"
-                className="text-xs text-fuchsia-500 hover:text-fuchsia-400 transition-colors"
-                onClick={() => alert("Fonctionnalité de récupération de mot de passe à venir")}
-              >
-                Mot de passe oublié ?
-              </button>
-            </div>
           </div>
           
-          {/* Bouton de connexion */}
           <button 
             type="submit" 
-            className={`btn btn-primary w-full bg-fuchsia-500 hover:bg-fuchsia-600 border-none text-white mt-6 ${
+            className={`btn btn-primary w-full bg-fuchsia-500 hover:bg-fuchsia-600 border-none text-white ${
               loading ? 'loading' : ''
             }`}
             disabled={loading}
           >
-            {loading ? 'Connexion en cours...' : 'Se connecter'}
+            {loading ? 'Connexion...' : 'Se connecter'}
           </button>
           
-          {/* Séparateur */}
           <div className="divider text-xs text-gray-400">OU</div>
           
-          {/* Lien vers inscription */}
           <div className="text-center">
             <p className="text-sm text-gray-500">
               Pas encore de compte ?{' '}
               <button 
                 type="button"
                 onClick={handleOpenRegister}
-                className="text-fuchsia-500 hover:text-fuchsia-400 font-medium transition-colors"
-                disabled={loading}
+                className="text-fuchsia-500 hover:text-fuchsia-400 font-medium"
               >
                 S'inscrire
               </button>
             </p>
           </div>
-          
-
         </form>
       </motion.div>
     </motion.div>

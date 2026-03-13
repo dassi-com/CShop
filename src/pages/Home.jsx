@@ -1,72 +1,73 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Hero from '../components/Hero';
 import CarouselBanner from '../components/CarouselBanner';
 import ProductGrid from '../components/ProductGrid';
 import { initialProducts } from '../data/products';
+import axios from 'axios';
+
+const API_URL = 'https://api-final-m259.onrender.com/api';
+const IMAGE_URL = 'https://api-final-m259.onrender.com';
 
 const Home = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
+  // Fonction pour obtenir l'URL complète de l'image
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${IMAGE_URL}/${imagePath}`;
+  };
 
-  const loadProducts = () => {
+  // Fonction de chargement des produits depuis l'API
+  const loadProducts = useCallback(async () => {
     try {
-      const adminProducts = JSON.parse(localStorage.getItem('adminProducts') || '[]');
-      const allProducts = [...initialProducts, ...adminProducts];
+      console.log('🔄 Chargement des produits depuis le serveur...');
+      
+      const response = await axios.get(`${API_URL}/products`);
+      
+      console.log('✅ Réponse API:', response.data);
+      
+      // Adapter selon la structure de l'API
+      let apiProducts = [];
+      if (response.data?.success && response.data?.data) {
+        apiProducts = response.data.data;
+      }
+      
+      // Transformer les produits API pour ajouter l'URL complète de l'image
+      const formattedApiProducts = apiProducts.map(product => ({
+        ...product,
+        image: getImageUrl(product.image)
+      }));
+      
+      console.log(`📦 Produits API: ${formattedApiProducts.length}`);
+      console.log(`📦 Produits initiaux: ${initialProducts.length}`);
+      
+      // Combiner les produits initiaux avec ceux de l'API
+      const allProducts = [...initialProducts, ...formattedApiProducts];
+      
+      console.log(`✅ Total: ${allProducts.length} produits`);
       setProducts(allProducts);
       setLoading(false);
+      setLastUpdate(Date.now());
+      
     } catch (error) {
-      console.error('Erreur chargement produits:', error);
+      console.error('❌ Erreur chargement produits depuis API:', error);
       setProducts(initialProducts);
       setLoading(false);
     }
-  };
+  }, []);
 
+  // Chargement initial
   useEffect(() => {
     loadProducts();
-  }, []);
-
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'adminProducts') {
-        console.log(' Changement détecté dans adminProducts, rechargement...');
-        loadProducts();
-        setLastUpdate(Date.now());
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    const interval = setInterval(() => {
-      const adminProducts = JSON.parse(localStorage.getItem('adminProducts') || '[]');
-      const currentProducts = [...initialProducts, ...adminProducts];
-      
-
-      if (currentProducts.length !== products.length) {
-        console.log(' Détection d\'un changement via interval');
-        setProducts(currentProducts);
-      }
-    }, 3000); 
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [products.length]);
-
-  //  rafraîchissement globalement 
-  useEffect(() => {
-    window.refreshProducts = loadProducts;
-    return () => {
-      delete window.refreshProducts;
-    };
-  }, []);
+  }, [loadProducts]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="loading loading-spinner loading-lg text-fuchsia-500"></div>
+        <div className="loading loading-spinner loading-lg text-fuchsia-300"></div>
       </div>
     );
   }
@@ -79,7 +80,7 @@ const Home = () => {
         
         <section id="products-section" className="my-16 scroll-mt-20">
           <div className="flex justify-between items-center mb-10">
-            <h2 className="text-3xl  font-bold text-fuchsia-500">
+            <h2 className="text-3xl font-bold text-fuchsia-300">
               Nos Produits
             </h2>
             
@@ -89,7 +90,7 @@ const Home = () => {
               </span>
               
               <button 
-                className="btn btn-sm btn-ghost"
+                className="btn btn-sm btn-ghost text-fuchsia-300 hover:bg-fuchsia-300/10"
                 onClick={loadProducts}
                 title="Rafraîchir"
               >
@@ -110,7 +111,6 @@ const Home = () => {
             <ProductGrid products={products} />
           )}
           
-        
           <div className="text-center mt-4 text-xs text-gray-500">
             Dernière mise à jour: {new Date(lastUpdate).toLocaleTimeString()}
           </div>

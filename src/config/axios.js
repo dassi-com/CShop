@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://ecommerce-node-api-b5tp.onrender.com/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://api-final-m259.onrender.com/api';
 const TIMEOUT = 30000; 
 
 const axiosInstance = axios.create({
@@ -25,12 +25,10 @@ axiosInstance.interceptors.request.use(
 
 axiosInstance.interceptors.response.use(
   (response) => {
-    if (response.data && response.data.success !== undefined) {
-      return response.data;
-    }
     return response.data;
   },
   (error) => {
+    // Gestion des erreurs de timeout
     if (error.code === 'ECONNABORTED') {
       return Promise.reject({
         message: 'Le serveur met trop de temps à répondre. Veuillez réessayer.',
@@ -38,14 +36,22 @@ axiosInstance.interceptors.response.use(
       });
     }
 
+    // Gestion des erreurs 401 (non autorisé)
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/';
+      
+      // ✅ NE PAS REDIRIGER VERS /login
+      // On laisse le composant gérer l'état
+      console.log('Session expirée - utilisateur déconnecté');
+      
+      // Option 1: On peut émettre un événement personnalisé
+      window.dispatchEvent(new Event('unauthorized'));
     }
 
+    // Rejeter avec un message d'erreur approprié
     return Promise.reject({
-      message: error.response?.data?.message || 'Erreur de connexion',
+      message: error.response?.data?.message || 'Erreur de connexion au serveur',
       status: error.response?.status || 'NETWORK_ERROR',
       data: error.response?.data
     });

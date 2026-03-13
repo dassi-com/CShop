@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingCart, Star, LogIn, UserPlus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCart } from '../context/CartContext'
@@ -10,6 +10,7 @@ import RegisterModal from '../modals/RegisterModal'
 const Navbar = () => {
   const { getCartCount } = useCart()
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showRegisterModal, setShowRegisterModal] = useState(false)
   const [cartAnimation, setCartAnimation] = useState(false)
@@ -23,6 +24,46 @@ const Navbar = () => {
       return () => clearTimeout(timer)
     }
   }, [cartCount])
+
+  // ✅ Fonction sécurisée pour obtenir l'initiale de l'utilisateur
+  const getUserInitial = () => {
+    if (!user) return '?'
+    
+    // Si le nom existe et est une chaîne non vide
+    if (user.name && typeof user.name === 'string' && user.name.length > 0) {
+      return user.name.charAt(0).toUpperCase()
+    }
+    
+    // Si l'email existe, prendre la première lettre de l'email
+    if (user.email && typeof user.email === 'string' && user.email.length > 0) {
+      return user.email.charAt(0).toUpperCase()
+    }
+    
+    // Valeur par défaut
+    return 'U'
+  }
+
+  // ✅ Fonction sécurisée pour obtenir le nom complet de l'utilisateur
+  const getUserName = () => {
+    if (!user) return 'Utilisateur'
+    
+    if (user.name && typeof user.name === 'string' && user.name.trim() !== '') {
+      return user.name
+    }
+    
+    if (user.email && typeof user.email === 'string') {
+      // Extraire le nom de l'email (partie avant le @)
+      const emailName = user.email.split('@')[0]
+      return emailName || 'Utilisateur'
+    }
+    
+    return 'Utilisateur'
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
+  }
 
   return (
     <>
@@ -62,15 +103,34 @@ const Navbar = () => {
           {user ? (
             <div className="dropdown dropdown-end">
               <label tabIndex={0} className="btn btn-ghost btn-circle avatar">
-                <div className="w-8 rounded-full bg-fuchsia-500 text-white flex items-center justify-center">
-                  {user.name.charAt(0).toUpperCase()}
+                <div className="w-8 rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white flex items-center justify-center font-bold">
+                  {getUserInitial()}
                 </div>
               </label>
-              <ul tabIndex={0} className="mt-3 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 z-50">
-                <li className="menu-title">
-                  <span>{user.name}</span>
+              <ul tabIndex={0} className="mt-3 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 z-50 border border-fuchsia-500/20">
+                <li className="menu-header p-2">
+                  <span className="text-sm opacity-70">Connecté en tant que</span>
+                  <span className="font-bold text-fuchsia-500">{getUserName()}</span>
                 </li>
-                <li><a onClick={logout}>Logout</a></li>
+                
+                {/* ✅ LIEN ADMIN - visible seulement pour les admins */}
+                {user?.role === 'admin' && (
+                  <li>
+                    <Link to="/admin" className="text-fuchsia-500 hover:bg-fuchsia-500/10">
+                      <span className="text-fuchsia-500">⚡</span>
+                      Panneau Admin
+                    </Link>
+                  </li>
+                )}
+                
+                <li>
+                  <button 
+                    onClick={handleLogout} 
+                    className="text-red-500 hover:bg-red-500/10 w-full text-left"
+                  >
+                    Déconnexion
+                  </button>
+                </li>
               </ul>
             </div>
           ) : (
@@ -85,7 +145,7 @@ const Navbar = () => {
               </button>
               <button 
                 onClick={() => setShowRegisterModal(true)}
-                className="btn btn-primary btn-sm gap-1 bg-fuchsia-300 hover:bg-fuchsia-'350 border-none"
+                className="btn btn-primary btn-sm gap-1 bg-fuchsia-300 hover:bg-fuchsia-400 border-none"
                 data-register-button
               >
                 <UserPlus className="w-4 h-4" />
@@ -101,10 +161,22 @@ const Navbar = () => {
 
       <AnimatePresence>
         {showLoginModal && (
-          <LoginModal onClose={() => setShowLoginModal(false)} />
+          <LoginModal 
+            onClose={() => setShowLoginModal(false)} 
+            onOpenRegister={() => {
+              setShowLoginModal(false)
+              setShowRegisterModal(true)
+            }}
+          />
         )}
         {showRegisterModal && (
-          <RegisterModal onClose={() => setShowRegisterModal(false)} />
+          <RegisterModal 
+            onClose={() => setShowRegisterModal(false)}
+            onOpenLogin={() => {
+              setShowRegisterModal(false)
+              setShowLoginModal(true)
+            }}
+          />
         )}
       </AnimatePresence>
     </>

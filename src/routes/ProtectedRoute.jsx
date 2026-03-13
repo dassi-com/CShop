@@ -1,12 +1,16 @@
-import React from 'react'
+// routes/ProtectedRoute.js
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const ProtectedRoute = ({ children }) => {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, loading } = useAuth()
+
+  if (loading) {
+    return <div className="loading loading-spinner loading-lg text-fuchsia-500"></div>
+  }
 
   if (!user || !isAdmin) {
-    // Redirect to home page if not authenticated or not admin
+    // ✅ Rediriger vers l'accueil, pas vers /login
     return <Navigate to="/" replace />
   }
 

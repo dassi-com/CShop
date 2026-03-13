@@ -12,55 +12,72 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user')
-    const storedIsAdmin = localStorage.getItem('isAdmin')
-    
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-      setIsAdmin(storedIsAdmin === 'true')
+    const loadUserFromStorage = () => {
+      try {
+        const storedUser = localStorage.getItem('user')
+        const storedToken = localStorage.getItem('token')
+        
+        // Vérifier si storedUser existe et n'est pas "undefined"
+        if (storedUser && storedToken && storedUser !== 'undefined') {
+          const parsedUser = JSON.parse(storedUser)
+          setUser(parsedUser)
+          console.log('Utilisateur chargé:', parsedUser)
+        } else {
+          // Nettoyer le localStorage si les données sont invalides
+          localStorage.removeItem('user')
+          localStorage.removeItem('token')
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement:', error)
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+      } finally {
+        setLoading(false)
+      }
     }
+
+    loadUserFromStorage()
   }, [])
 
-  const login = (email, password) => {
-    // Simulate login - in real app, this would validate with backend
-    const userData = { email, name: email.split('@')[0] }
-    const adminStatus = email === 'admin@starchop.com' && password === 'admin123'
-    
-    setUser(userData)
-    setIsAdmin(adminStatus)
-    
-    localStorage.setItem('user', JSON.stringify(userData))
-    localStorage.setItem('isAdmin', adminStatus.toString())
-    
-    return true
+  const login = async (userData, token) => {
+    try {
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('token', token)
+      setUser(userData)
+      return true
+    } catch (error) {
+      console.error('Erreur login:', error)
+      return false
+    }
   }
 
-  const register = (name, email, password) => {
-    // Simulate registration
-    const userData = { email, name }
-    
-    setUser(userData)
-    setIsAdmin(false)
-    
-    localStorage.setItem('user', JSON.stringify(userData))
-    localStorage.setItem('isAdmin', 'false')
-    
-    return true
+  const register = async (userData, token) => {
+    try {
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('token', token)
+      setUser(userData)
+      return true
+    } catch (error) {
+      console.error('Erreur register:', error)
+      return false
+    }
   }
 
   const logout = () => {
     setUser(null)
-    setIsAdmin(false)
     localStorage.removeItem('user')
-    localStorage.removeItem('isAdmin')
+    localStorage.removeItem('token')
   }
 
   const value = {
     user,
     isAdmin,
+    loading,
     login,
     register,
     logout

@@ -1,29 +1,57 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { PlusCircle, Trash2, Edit, Eye, X, Check } from 'lucide-react'
+import { PlusCircle, Trash2, Edit, Save, X, AlertCircle, Upload } from 'lucide-react'
+import axios from 'axios'
+
+const API_URL = 'https://api-final-m259.onrender.com/api'
+const IMAGE_URL = 'https://api-final-m259.onrender.com'
 
 const Admin = () => {
   const { user } = useAuth()
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    image: '',
     description: ''
   })
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState('')
   const [message, setMessage] = useState({ text: '', type: '' })
   const [products, setProducts] = useState([])
   const [editingId, setEditingId] = useState(null)
-  const [previewImage, setPreviewImage] = useState('')
-  const [showPreview, setShowPreview] = useState(false)
+  const [loading, setLoading] = useState(false)
 
+  // IDs des produits à supprimer (Laptop, Moniteur, Modem)
+  const PRODUCTS_TO_DELETE = [
+    "057c1278-f53a-4141-b0c1-c7f81bb3b339", // Laptop
+    "78367791-6971-4ce0-90b6-4d262a5683bf", // Moniteur
+    "fc249f87-1340-42f9-a121-36c9ab9094e9"  // Modem
+  ]
+
+  // Charger les produits depuis l'API
   useEffect(() => {
-    loadProducts()
+    fetchProducts()
   }, [])
 
-
-  const loadProducts = () => {
-    const existingProducts = JSON.parse(localStorage.getItem('adminProducts') || '[]')
-    setProducts(existingProducts)
+  const fetchProducts = async () => {
+    try {
+      console.log('🔄 Chargement des produits...')
+      const response = await axios.get(`${API_URL}/products`)
+      
+      console.log('✅ Réponse API:', response.data)
+      
+      if (response.data?.success && response.data?.data) {
+        // Filtrer pour supprimer les produits indésirables
+        const filteredProducts = response.data.data.filter(
+          product => !PRODUCTS_TO_DELETE.includes(product._id)
+        )
+        setProducts(filteredProducts)
+        console.log(`📦 ${filteredProducts.length} produits après filtrage`)
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement produits:', error)
+      setMessage({ text: 'Erreur chargement des produits', type: 'error' })
+    }
   }
 
   const handleChange = (e) => {
@@ -32,10 +60,19 @@ const Admin = () => {
       ...formData,
       [name]: value
     })
+  }
 
-
-    if (name === 'image' && value) {
-      setPreviewImage(value)
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setImageFile(file)
+      
+      // Créer un aperçu de l'image
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
@@ -43,15 +80,13 @@ const Admin = () => {
     setFormData({
       name: '',
       price: '',
-      image: '',
       description: ''
     })
+    setImageFile(null)
+    setImagePreview('')
     setEditingId(null)
-    setPreviewImage('')
-    setShowPreview(false)
   }
 
-  
   const validateForm = () => {
     if (!formData.name.trim()) {
       setMessage({ text: 'Le nom du produit est requis', type: 'error' })
@@ -61,8 +96,8 @@ const Admin = () => {
       setMessage({ text: 'Le prix doit être supérieur à 0', type: 'error' })
       return false
     }
-    if (!formData.image.trim()) {
-      setMessage({ text: 'L\'URL de l\'image est requise', type: 'error' })
+    if (!imageFile && !editingId) {
+      setMessage({ text: 'Veuillez sélectionner une image', type: 'error' })
       return false
     }
     if (!formData.description.trim()) {
@@ -72,312 +107,336 @@ const Admin = () => {
     return true
   }
 
+  // Convertir l'image en Base64
+  const imageToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = error => reject(error)
+    })
+  }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
-    
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
- 
-    const productData = {
-      ...formData,
-      price: parseFloat(formData.price),
-      image: formData.image || 'https://via.placeholder.com/400x400/fuchsia/white?text=Produit'
-    }
+    setLoading(true)
+    const token = localStorage.getItem('token')
 
-    
-    const existingProducts = JSON.parse(localStorage.getItem('adminProducts') || '[]')
-    let updatedProducts
-
-    if (editingId) {
-      
-
-      updatedProducts = existingProducts.map(p => 
-        p.id === editingId ? { ...productData, id: editingId } : p
-      )
-      setMessage({ text: 'Produit modifié avec succès !', type: 'success' })
-    } else {
-     
-      
-
-      const newProduct = {
-        id: Date.now(),
-        ...productData
+    try {
+      // Convertir l'image en Base64
+      let imageBase64 = null
+      if (imageFile) {
+        imageBase64 = await imageToBase64(imageFile)
       }
-      updatedProducts = [...existingProducts, newProduct]
-      setMessage({ text: 'Produit ajouté avec succès !', type: 'success' })
-    }
-    
-   
-    localStorage.setItem('adminProducts', JSON.stringify(updatedProducts))
-    
-  
-    window.dispatchEvent(new Event('storage'))
-    
-   
-    setProducts(updatedProducts)
-    
-   
 
-    resetForm()
-    
-   
-    setTimeout(() => setMessage({ text: '', type: '' }), 3000)
-  }
+      // Préparer les données du produit
+      const productData = {
+        name: formData.name,
+        price: parseFloat(formData.price),
+        description: formData.description
+      }
 
+      // Ajouter l'image si elle existe
+      if (imageBase64) {
+        productData.image = imageBase64
+      }
 
-  const handleEdit = (product) => {
-    setFormData({
-      name: product.name,
-      price: product.price.toString(),
-      image: product.image,
-      description: product.description
-    })
-    setEditingId(product.id)
-    setPreviewImage(product.image)
-    setShowPreview(true)
-    
-   
-    document.getElementById('product-form').scrollIntoView({ behavior: 'smooth' })
-  }
+      console.log('📤 Envoi données:', productData)
 
-  // Fonction pour supprimer un produit
-  const handleDelete = (id) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
-      const existingProducts = JSON.parse(localStorage.getItem('adminProducts') || '[]')
-      const updatedProducts = existingProducts.filter(p => p.id !== id)
-      
-      localStorage.setItem('adminProducts', JSON.stringify(updatedProducts))
-      window.dispatchEvent(new Event('storage'))
-      setProducts(updatedProducts)
-      setMessage({ text: 'Produit supprimé avec succès !', type: 'success' })
-      
+      let response
+
+      if (editingId) {
+        // Modification
+        response = await axios.put(
+          `${API_URL}/products/${editingId}`,
+          productData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        setMessage({ text: 'Produit modifié avec succès !', type: 'success' })
+      } else {
+        // Ajout
+        response = await axios.post(
+          `${API_URL}/products`,
+          productData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        setMessage({ text: 'Produit ajouté avec succès !', type: 'success' })
+      }
+
+      console.log('✅ Réponse:', response.data)
+
+      // Recharger la liste des produits
+      await fetchProducts()
+      resetForm()
+
+    } catch (error) {
+      console.error('❌ Erreur:', error)
+      setMessage({ 
+        text: error.response?.data?.message || 'Erreur lors de l\'opération', 
+        type: 'error' 
+      })
+    } finally {
+      setLoading(false)
       setTimeout(() => setMessage({ text: '', type: '' }), 3000)
     }
   }
 
-  // Fonction pour annuler l'édition
-  const handleCancelEdit = () => {
-    resetForm()
+  const handleEdit = (product) => {
+    console.log('✏️ Édition produit:', product)
+    setFormData({
+      name: product.name,
+      price: product.price.toString(),
+      description: product.description
+    })
+    // Pour l'aperçu, on utilise l'URL complète de l'image
+    if (product.image) {
+      if (product.image.startsWith('data:image')) {
+        setImagePreview(product.image)
+      } else {
+        setImagePreview(`${IMAGE_URL}/${product.image}`)
+      }
+    }
+    setEditingId(product._id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Fonction pour tester l'URL de l'image
-  const testImageUrl = () => {
-    if (formData.image) {
-      setShowPreview(!showPreview)
+  const handleDelete = async (id) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) return
+
+    setLoading(true)
+    const token = localStorage.getItem('token')
+
+    try {
+      console.log(`🗑️ Suppression produit ${id}`)
+      
+      const response = await axios.delete(`${API_URL}/products/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      console.log('✅ Réponse suppression:', response.data)
+
+      await fetchProducts()
+      setMessage({ text: 'Produit supprimé avec succès !', type: 'success' })
+
+    } catch (error) {
+      console.error('❌ Erreur suppression:', error)
+      setMessage({ 
+        text: error.response?.data?.message || 'Erreur lors de la suppression', 
+        type: 'error' 
+      })
+    } finally {
+      setLoading(false)
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000)
     }
   }
 
+  // Fonction pour obtenir l'URL complète de l'image
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return 'https://placehold.co/400x400/374151/fuchsia?text=Image+Error'
+    if (imagePath.startsWith('data:image')) return imagePath
+    if (imagePath.startsWith('http')) return imagePath
+    return `${IMAGE_URL}/${imagePath}`
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2 text-fuchsia-500">Panneau d'Administration</h1>
-      <p className="text-gray-400 mb-8">
-        Bienvenue, <span className="text-fuchsia-500 font-semibold">{user?.name}</span> ! 
-        Gérez les produits de la boutique.
-      </p>
-      
+    <div className="min-h-screen bg-gray-900 py-8">
+      <div className="container mx-auto px-4 max-w-6xl">
+        {/* En-tête */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-fuchsia-300 mb-2">
+            Panneau d'Administration
+          </h1>
+          <p className="text-gray-400">
+            Bienvenue, <span className="text-fuchsia-300 font-semibold">{user?.name}</span>
+          </p>
+        </div>
 
-
-      <div id="product-form" className="card bg-base-100 shadow-xl max-w-2xl mx-auto mb-8">
-        <div className="card-body">
-          <h2 className="card-title text-2xl mb-4 text-fuchsia-500">
-            <PlusCircle className="w-6 h-6" />
+        {/* Formulaire */}
+        <div className="bg-gray-800 rounded-xl p-6 mb-8 border border-gray-700">
+          <h2 className="text-xl font-semibold text-fuchsia-300 mb-4 flex items-center gap-2">
+            <PlusCircle className="w-5 h-5 text-fuchsia-300" />
             {editingId ? 'Modifier le produit' : 'Ajouter un nouveau produit'}
           </h2>
           
           {message.text && (
-            <div className={`alert ${message.type === 'success' ? 'alert-success' : 'alert-error'} shadow-lg mb-4`}>
-              <span>{message.text}</span>
+            <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
+              message.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
+            }`}>
+              {message.type === 'success' ? <Save className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+              <span className="text-sm">{message.text}</span>
             </div>
           )}
           
           <form onSubmit={handleSubmit} className="space-y-4">
-           
-
-
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Nom du produit</span>
-              </label>
-              <input 
-                type="text" 
-                name="name"
-                placeholder="Ex: Gaming Controller Pro" 
-                className="input input-bordered w-full bg-base-200 focus:bg-base-100"
-                value={formData.name}
-                onChange={handleChange}
-              />
-            </div>
-            
-          
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Prix (FCFA)</span>
-              </label>
-              <input 
-                type="number" 
-                name="price"
-                step="0.01"
-                min="0"
-                placeholder="4999" 
-                className="input input-bordered w-full bg-base-200 focus:bg-base-100"
-                value={formData.price}
-                onChange={handleChange}
-              />
-            </div>
-            
-   
-
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">URL de l'image</span>
-              </label>
-              <div className="flex gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Nom du produit
+                </label>
                 <input 
-                  type="url" 
-                  name="image"
-                  placeholder="https://example.com/image.jpg" 
-                  className="input input-bordered flex-1 bg-base-200 focus:bg-base-100"
-                  value={formData.image}
+                  type="text" 
+                  name="name"
+                  placeholder="Ex: Gaming Controller Pro" 
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-fuchsia-300 text-white"
+                  value={formData.name}
                   onChange={handleChange}
+                  disabled={loading}
                 />
-                <button 
-                  type="button"
-                  className="btn btn-square bg-fuchsia-500 hover:bg-fuchsia-600 border-none"
-                  onClick={testImageUrl}
-                  title="Aperçu"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
               </div>
               
-          
-
-              {showPreview && previewImage && (
-                <div className="mt-4 p-4 bg-base-200 rounded-lg">
-                  <p className="text-sm text-gray-400 mb-2">Aperçu de l'image :</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Prix (FCFA)
+                </label>
+                <input 
+                  type="number" 
+                  name="price"
+                  step="0.01"
+                  min="0"
+                  placeholder="4999" 
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-fuchsia-300 text-white"
+                  value={formData.price}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Image du produit
+              </label>
+              <div className="flex items-center gap-4">
+                <label className={`cursor-pointer bg-fuchsia-300 hover:bg-fuchsia-400 text-gray-900 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <Upload className="w-4 h-4" />
+                  Choisir une image
+                  <input 
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                    disabled={loading}
+                  />
+                </label>
+                {imagePreview && (
+                  <span className="text-sm text-gray-400">
+                    Image sélectionnée
+                  </span>
+                )}
+              </div>
+              
+              {imagePreview && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-400 mb-2">Aperçu :</p>
                   <img 
-                    src={previewImage} 
-                    alt="Prévisualisation"
-                    className="w-32 h-32 object-cover rounded-lg mx-auto"
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/128x128/fuchsia/white?text=Erreur+Image'
-                    }}
+                    src={imagePreview} 
+                    alt="Aperçu"
+                    className="w-32 h-32 object-cover rounded-lg border-2 border-fuchsia-300"
                   />
                 </div>
               )}
             </div>
             
-        
-
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Description</span>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Description
               </label>
               <textarea 
                 name="description"
-                className="textarea textarea-bordered h-24 bg-base-200 focus:bg-base-100"
+                rows="3"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-fuchsia-300 text-white resize-none"
                 placeholder="Description détaillée du produit..."
                 value={formData.description}
                 onChange={handleChange}
+                disabled={loading}
               ></textarea>
             </div>
             
-            
-
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-2 pt-2">
               <button 
                 type="submit" 
-                className="btn btn-primary flex-1 bg-fuchsia-500 hover:bg-fuchsia-600 border-none"
+                className={`px-4 py-2 bg-fuchsia-300 hover:bg-fuchsia-400 text-gray-900 rounded-lg transition-colors flex items-center gap-2 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={loading}
               >
-                {editingId ? 'Modifier le produit' : 'Ajouter le produit'}
+                <Save className="w-4 h-4" />
+                {loading ? 'En cours...' : (editingId ? 'Modifier' : 'Ajouter')}
               </button>
               
               {editingId && (
                 <button 
                   type="button"
-                  className="btn btn-ghost"
-                  onClick={handleCancelEdit}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                  onClick={resetForm}
+                  disabled={loading}
                 >
+                  <X className="w-4 h-4" />
                   Annuler
                 </button>
               )}
             </div>
           </form>
         </div>
-      </div>
 
-      
-
-      {products.length > 0 && (
-        <div className="max-w-4xl mx-auto">
-          <h3 className="text-xl font-bold mb-4 text-fuchsia-500">
-            Produits ajoutés ({products.length})
-          </h3>
-          
-          <div className="grid gap-4">
-            {products.map((product) => (
-              <div key={product.id} className="card bg-base-100 shadow-xl">
-                <div className="card-body p-4">
-                  <div className="flex items-start gap-4">
+        {/* Liste des produits */}
+        {products.length > 0 ? (
+          <div>
+            <h3 className="text-lg font-semibold text-fuchsia-300 mb-4">
+              Produits en base de données ({products.length})
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {products.map((product) => (
+                <div key={product._id} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-fuchsia-300/50 transition-colors">
+                  <img 
+                    src={getImageUrl(product.image)} 
+                    alt={product.name}
+                    className="w-full h-48 object-cover bg-gray-700"
+                    onError={(e) => {
+                      e.target.src = 'https://placehold.co/400x400/374151/fuchsia?text=Image+Error'
+                    }}
+                  />
+                  
+                  <div className="p-4">
+                    <h4 className="font-semibold text-white mb-1">{product.name}</h4>
+                    <p className="text-sm text-gray-400 mb-2 line-clamp-2">{product.description}</p>
+                    <p className="text-fuchsia-300 font-bold text-lg mb-3">
+                      {product.price?.toLocaleString()} FCFA
+                    </p>
                     
-
-                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-base-200">
-                      <img 
-                        src={product.image} 
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/80x80/fuchsia/white?text=Image'
-                        }}
-                      />
-                    </div>
-                    
-                    
-                    <div className="flex-1">
-                      <h4 className="font-bold">{product.name}</h4>
-                      <p className="text-sm text-gray-400 line-clamp-2">{product.description}</p>
-                      <p className="text-fuchsia-500 font-bold mt-1">
-                        {parseFloat(product.price).toLocaleString()} FCFA
-                      </p>
-                    </div>
-                    
-                   
                     <div className="flex gap-2">
                       <button 
-                        className="btn btn-sm btn-ghost text-blue-500"
+                        className="flex-1 px-3 py-2 bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-1 text-sm"
                         onClick={() => handleEdit(product)}
-                        title="Modifier"
+                        disabled={loading}
                       >
                         <Edit className="w-4 h-4" />
+                        Modifier
                       </button>
                       <button 
-                        className="btn btn-sm btn-ghost text-red-500"
-                        onClick={() => handleDelete(product.id)}
-                        title="Supprimer"
+                        className="flex-1 px-3 py-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors flex items-center justify-center gap-1 text-sm"
+                        onClick={() => handleDelete(product._id)}
+                        disabled={loading}
                       >
                         <Trash2 className="w-4 h-4" />
+                        Supprimer
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-   
-      {products.length === 0 && (
-        <div className="text-center py-8 max-w-2xl mx-auto bg-base-200 rounded-lg">
-          <p className="text-gray-400">
-            Aucun produit ajouté pour le moment. Utilisez le formulaire ci-dessus pour ajouter votre premier produit.
-          </p>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700">
+            <p className="text-gray-400">
+              Aucun produit en base de données. Utilisez le formulaire ci-dessus pour créer votre premier produit.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
