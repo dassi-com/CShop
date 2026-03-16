@@ -24,36 +24,37 @@ const Home = () => {
   const loadProducts = useCallback(async () => {
     try {
       console.log('🔄 Chargement des produits depuis le serveur...');
-      
+
+      // Récupérer tous les produits depuis l'API
       const response = await axios.get(`${API_URL}/products`);
-      
+
       console.log('✅ Réponse API:', response.data);
-      
-      // Adapter selon la structure de l'API
+
       let apiProducts = [];
       if (response.data?.success && response.data?.data) {
         apiProducts = response.data.data;
       }
-      
+
       // Transformer les produits API pour ajouter l'URL complète de l'image
       const formattedApiProducts = apiProducts.map(product => ({
         ...product,
         image: getImageUrl(product.image)
       }));
-      
+
       console.log(`📦 Produits API: ${formattedApiProducts.length}`);
       console.log(`📦 Produits initiaux: ${initialProducts.length}`);
-      
-      // Combiner les produits initiaux avec ceux de l'API
+
+      // ✅ Ne modifie pas les produits initiaux, ajoute juste ceux de l'API à la fin
       const allProducts = [...initialProducts, ...formattedApiProducts];
-      
+
       console.log(`✅ Total: ${allProducts.length} produits`);
       setProducts(allProducts);
       setLoading(false);
       setLastUpdate(Date.now());
-      
+
     } catch (error) {
       console.error('❌ Erreur chargement produits depuis API:', error);
+      // En cas d'erreur, on ne touche pas aux initialProducts
       setProducts(initialProducts);
       setLoading(false);
     }
