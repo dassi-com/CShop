@@ -13,11 +13,11 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    if (imagePath.startsWith('http')) return imagePath;
-    return `${IMAGE_URL}/${imagePath}`;
-  };
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+  return `${IMAGE_URL}/${cleanPath}`;
+};
 
   const loadProducts = useCallback(async () => {
     try {
@@ -32,11 +32,9 @@ const Home = () => {
         }));
       }
 
-      // ✅ Combiner initialProducts + API et filtrer les doublons par id
-      const uniqueProducts = [...initialProducts, ...apiProducts].filter(
-        (product, index, self) =>
-          index === self.findIndex(p => p.id === product.id)
-      );
+      // Juste combiner sans filtrer
+    const allProducts = [...initialProducts, ...apiProducts];
+     setProducts(allProducts);
 
       console.log(`📦 Total produits uniques: ${uniqueProducts.length}`);
       setProducts(uniqueProducts);
