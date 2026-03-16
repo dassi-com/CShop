@@ -44,7 +44,7 @@ const Home = () => {
       console.log(`📦 Produits API: ${formattedApiProducts.length}`);
       console.log(`📦 Produits initiaux: ${initialProducts.length}`);
 
-      // ✅ Ne modifie pas les produits initiaux, ajoute juste ceux de l'API à la fin
+      // ✅ Ajouter uniquement les produits de l'API à la fin sans modifier les produits initiaux
       const allProducts = [...initialProducts, ...formattedApiProducts];
 
       console.log(`✅ Total: ${allProducts.length} produits`);
