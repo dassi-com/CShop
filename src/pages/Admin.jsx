@@ -6,7 +6,7 @@ import axios from 'axios';
 const API_URL = 'https://api-final-m259.onrender.com/api';
 const IMAGE_URL = 'https://api-final-m259.onrender.com';
 
-const Admin = () => {
+const AdminDashboard = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({ name: '', price: '', description: '' });
   const [imageFile, setImageFile] = useState(null);
@@ -200,4 +200,4 @@ const Admin = () => {
   );
 };
 
-export default Admin;
+export default AdminDashboard;
