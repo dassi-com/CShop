@@ -31,15 +31,9 @@ const getImageUrl = (imagePath) => {
           ...product,
           image: getImageUrl(product.image)
         }));
-
-          console.log('Image API brute:', product.image);
-  return {
-    ...product,
-    image: getImageUrl(product.image)
-  };
       }
 
- 
+      
 
       // Juste combiner sans filtrer
     const allProducts = [...initialProducts, ...apiProducts];
