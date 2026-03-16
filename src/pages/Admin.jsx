@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { PlusCircle, Trash2, Edit, Save, X, AlertCircle, Upload } from 'lucide-react';
+import { PlusCircle, Trash2, Edit, Save, X, AlertCircle, Upload, Package, DollarSign } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = 'https://api-final-m259.onrender.com/api';
@@ -86,17 +86,17 @@ const AdminDashboard = () => {
 
       if (editingId) {
         await axios.put(`${API_URL}/products/${editingId}`, productData, { headers: { Authorization: `Bearer ${token}` } });
-        setMessage({ text: 'Produit modifié !', type: 'success' });
+        setMessage({ text: 'Produit modifié avec succès !', type: 'success' });
       } else {
         await axios.post(`${API_URL}/products`, productData, { headers: { Authorization: `Bearer ${token}` } });
-        setMessage({ text: 'Produit ajouté !', type: 'success' });
+        setMessage({ text: 'Produit ajouté avec succès !', type: 'success' });
       }
 
       fetchProducts();
       resetForm();
     } catch (error) {
       console.error(error);
-      setMessage({ text: error.response?.data?.message || 'Erreur opération', type: 'error' });
+      setMessage({ text: error.response?.data?.message || 'Erreur lors de l\'opération', type: 'error' });
     } finally {
       setLoading(false);
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
@@ -116,11 +116,11 @@ const AdminDashboard = () => {
     const token = localStorage.getItem('token');
     try {
       await axios.delete(`${API_URL}/products/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setMessage({ text: 'Produit supprimé !', type: 'success' });
+      setMessage({ text: 'Produit supprimé avec succès !', type: 'success' });
       fetchProducts();
     } catch (error) {
       console.error(error);
-      setMessage({ text: 'Erreur suppression', type: 'error' });
+      setMessage({ text: 'Erreur lors de la suppression', type: 'error' });
     } finally {
       setLoading(false);
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
@@ -134,67 +134,196 @@ const AdminDashboard = () => {
     return `${IMAGE_URL}/${imagePath}`;
   };
 
+  // Statistiques
+  const totalProducts = products.length;
+  const totalValue = products.reduce((sum, p) => sum + (p.price || 0), 0);
+
   return (
-    <div className="min-h-screen bg-gray-900 py-8 text-black">
+    <div className="min-h-screen bg-gray-900 py-8">
       <div className="container mx-auto px-4 max-w-7xl">
-        <h1 className="text-3xl font-bold text-fuchsia-300 mb-6">Admin Dashboard</h1>
+        {/* En-tête avec bienvenue */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-fuchsia-300 mb-2">Tableau de bord administrateur</h1>
+          <p className="text-gray-400">
+            Bienvenue, <span className="text-fuchsia-300 font-semibold">{user?.name || 'Admin'}</span>
+          </p>
+        </div>
+
+        {/* Statistiques rapides */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="bg-white rounded-xl p-6 border border-fuchsia-200 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-fuchsia-100 rounded-lg">
+                <Package className="w-6 h-6 text-fuchsia-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total produits</p>
+                <p className="text-2xl font-bold text-gray-800">{totalProducts}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-6 border border-fuchsia-200 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-fuchsia-100 rounded-lg">
+                <DollarSign className="w-6 h-6 text-fuchsia-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Valeur totale</p>
+                <p className="text-2xl font-bold text-gray-800">{totalValue.toLocaleString()} FCFA</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Formulaire CRUD */}
-        <div className="bg-white p-6 rounded-xl mb-8 border border-fuchsia-300 text-black">
-          <h2 className="text-xl font-semibold text-fuchsia-300 mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-xl p-6 mb-8 border border-fuchsia-200 shadow-sm">
+          <h2 className="text-xl font-semibold text-fuchsia-400 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5" />
-            {editingId ? 'Modifier le produit' : 'Ajouter un produit'}
+            {editingId ? 'Modifier le produit' : 'Ajouter un nouveau produit'}
           </h2>
 
           {message.text && (
-            <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
+              message.type === 'success' 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
               {message.type === 'success' ? <Save className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-              <span>{message.text}</span>
+              <span className="text-sm">{message.text}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-              <input type="text" name="name" placeholder="Nom" value={formData.name} onChange={handleChange} className="p-2 rounded-lg w-full" disabled={loading} />
-              <input type="number" name="price" placeholder="Prix" value={formData.price} onChange={handleChange} className="p-2 rounded-lg w-full" disabled={loading} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
+                <input 
+                  type="text" 
+                  name="name" 
+                  placeholder="Ex: Smartphone X" 
+                  value={formData.name} 
+                  onChange={handleChange} 
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 focus:ring-1 focus:ring-fuchsia-300"
+                  disabled={loading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prix (FCFA)</label>
+                <input 
+                  type="number" 
+                  name="price" 
+                  placeholder="50000" 
+                  value={formData.price} 
+                  onChange={handleChange} 
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 focus:ring-1 focus:ring-fuchsia-300"
+                  disabled={loading}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer bg-fuchsia-300 text-black px-4 py-2 rounded-lg">
-                <Upload className="w-4 h-4" /> Choisir une image
-                <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} disabled={loading} />
-              </label>
-              {imagePreview && <span>Aperçu sélectionné</span>}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Image du produit</label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer bg-fuchsia-100 hover:bg-fuchsia-200 text-gray-700 px-4 py-2 rounded-lg border border-fuchsia-300 transition-colors">
+                  <Upload className="w-4 h-4" /> 
+                  Choisir une image
+                  <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} disabled={loading} />
+                </label>
+                {imagePreview && <span className="text-sm text-gray-500">Image sélectionnée ✓</span>}
+              </div>
+              {imagePreview && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 mb-2">Aperçu :</p>
+                  <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-lg border-2 border-fuchsia-300" />
+                </div>
+              )}
             </div>
-            {imagePreview && <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-lg border-2 border-fuchsia-300" />}
 
-            <textarea name="description" rows="3" placeholder="Description" value={formData.description} onChange={handleChange} className="w-full p-2 rounded-lg" disabled={loading}></textarea>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea 
+                name="description" 
+                rows="3" 
+                placeholder="Description détaillée du produit..." 
+                value={formData.description} 
+                onChange={handleChange} 
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300 focus:ring-1 focus:ring-fuchsia-300"
+                disabled={loading}
+              ></textarea>
+            </div>
 
-            <div className="flex gap-2">
-              <button type="submit" className="bg-fuchsia-300 text-black px-4 py-2 rounded-lg flex items-center gap-2">{editingId ? 'Modifier' : 'Ajouter'}</button>
-              {editingId && <button type="button" className="bg-white px-4 py-2 rounded-lg" onClick={resetForm}>Annuler</button>}
+            <div className="flex gap-2 pt-2">
+              <button 
+                type="submit" 
+                className={`bg-fuchsia-300 hover:bg-fuchsia-400 text-gray-900 px-6 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                disabled={loading}
+              >
+                <Save className="w-4 h-4" />
+                {loading ? 'En cours...' : (editingId ? 'Modifier' : 'Ajouter')}
+              </button>
+              {editingId && (
+                <button 
+                  type="button" 
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-lg transition-colors font-medium"
+                  onClick={resetForm}
+                >
+                  Annuler
+                </button>
+              )}
             </div>
           </form>
         </div>
 
         {/* Liste des produits */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((p) => (
-            <div key={p._id} className="bg-white text-black rounded-xl overflow-hidden border border-fuchsia-300 hover:shadow-lg transition-shadow">
-              <img src={getImageUrl(p.image)} alt={p.name} className="w-full h-48 object-cover" onError={(e)=>e.target.src='https://placehold.co/400x400/FFFFFF/fuchsia?text=No+Image'} />
-              <div className="p-4">
-                <h3 className="font-bold text-lg mb-1">{p.name}</h3>
-                <p className="text-gray-700 mb-2 line-clamp-2">{p.description}</p>
-                <p className="text-fuchsia-300 font-bold mb-2">{p.price?.toLocaleString()} FCFA</p>
-                <div className="flex gap-2">
-                  <button className="flex-1 bg-fuchsia-100 text-black px-2 py-1 rounded-lg flex items-center justify-center gap-1" onClick={()=>handleEdit(p)}> <Edit className="w-4 h-4"/> Edit </button>
-                  <button className="flex-1 bg-red-100 text-black px-2 py-1 rounded-lg flex items-center justify-center gap-1" onClick={()=>handleDelete(p._id)}> <Trash2 className="w-4 h-4"/> Delete </button>
+        {products.length > 0 ? (
+          <div>
+            <h3 className="text-lg font-semibold text-fuchsia-300 mb-4">
+              Produits en base ({products.length})
+            </h3>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((p) => (
+                <div 
+                  key={p._id} 
+                  className="bg-white rounded-xl overflow-hidden border border-fuchsia-200 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <img 
+                    src={getImageUrl(p.image)} 
+                    alt={p.name} 
+                    className="w-full h-48 object-cover"
+                    onError={(e) => e.target.src = 'https://placehold.co/400x400/FFFFFF/fuchsia?text=No+Image'} 
+                  />
+                  <div className="p-4">
+                    <h3 className="font-semibold text-gray-800 text-lg mb-1">{p.name}</h3>
+                    <p className="text-gray-600 text-sm mb-2 line-clamp-2">{p.description}</p>
+                    <p className="text-fuchsia-400 font-bold text-lg mb-3">{p.price?.toLocaleString()} FCFA</p>
+                    <div className="flex gap-2">
+                      <button 
+                        className="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-gray-700 px-3 py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                        onClick={() => handleEdit(p)}
+                      >
+                        <Edit className="w-4 h-4" /> Modifier
+                      </button>
+                      <button 
+                        className="flex-1 bg-red-50 hover:bg-red-100 text-gray-700 px-3 py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                        onClick={() => handleDelete(p._id)}
+                      >
+                        <Trash2 className="w-4 h-4" /> Supprimer
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl p-8 text-center border border-fuchsia-200">
+            <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500">Aucun produit pour le moment</p>
+            <p className="text-sm text-gray-400 mt-1">Ajoutez votre premier produit avec le formulaire ci-dessus</p>
+          </div>
+        )}
       </div>
     </div>
   );
