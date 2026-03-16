@@ -16,7 +16,6 @@ const Admin = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  // Charger les produits
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -28,12 +27,11 @@ const Admin = () => {
         setProducts(response.data.data);
       }
     } catch (error) {
-      console.error('Erreur chargement produits:', error);
-      setMessage({ text: 'Erreur chargement des produits', type: 'error' });
+      console.error(error);
+      setMessage({ text: 'Erreur chargement produits', type: 'error' });
     }
   };
 
-  // Gestion formulaire
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleImageChange = (e) => {
@@ -130,26 +128,26 @@ const Admin = () => {
   };
 
   const getImageUrl = (imagePath) => {
-    if (!imagePath) return 'https://placehold.co/400x400/374151/fuchsia?text=No+Image';
+    if (!imagePath) return 'https://placehold.co/400x400/FFFFFF/fuchsia?text=No+Image';
     if (imagePath.startsWith('data:image')) return imagePath;
     if (imagePath.startsWith('http')) return imagePath;
     return `${IMAGE_URL}/${imagePath}`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 py-8 text-white">
+    <div className="min-h-screen bg-gray-900 py-8 text-black">
       <div className="container mx-auto px-4 max-w-7xl">
         <h1 className="text-3xl font-bold text-fuchsia-300 mb-6">Admin Dashboard</h1>
 
         {/* Formulaire CRUD */}
-        <div className="bg-gray-800 p-6 rounded-xl mb-8 border border-fuchsia-300">
+        <div className="bg-white p-6 rounded-xl mb-8 border border-fuchsia-300 text-black">
           <h2 className="text-xl font-semibold text-fuchsia-300 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5" />
             {editingId ? 'Modifier le produit' : 'Ajouter un produit'}
           </h2>
 
           {message.text && (
-            <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+            <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
               {message.type === 'success' ? <Save className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
               <span>{message.text}</span>
             </div>
@@ -157,8 +155,8 @@ const Admin = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-              <input type="text" name="name" placeholder="Nom" value={formData.name} onChange={handleChange} className="p-2 rounded-lg w-full text-black" disabled={loading} />
-              <input type="number" name="price" placeholder="Prix" value={formData.price} onChange={handleChange} className="p-2 rounded-lg w-full text-black" disabled={loading} />
+              <input type="text" name="name" placeholder="Nom" value={formData.name} onChange={handleChange} className="p-2 rounded-lg w-full" disabled={loading} />
+              <input type="number" name="price" placeholder="Prix" value={formData.price} onChange={handleChange} className="p-2 rounded-lg w-full" disabled={loading} />
             </div>
 
             <div className="flex items-center gap-4">
@@ -170,11 +168,11 @@ const Admin = () => {
             </div>
             {imagePreview && <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-lg border-2 border-fuchsia-300" />}
 
-            <textarea name="description" rows="3" placeholder="Description" value={formData.description} onChange={handleChange} className="w-full p-2 rounded-lg text-black" disabled={loading}></textarea>
+            <textarea name="description" rows="3" placeholder="Description" value={formData.description} onChange={handleChange} className="w-full p-2 rounded-lg" disabled={loading}></textarea>
 
             <div className="flex gap-2">
               <button type="submit" className="bg-fuchsia-300 text-black px-4 py-2 rounded-lg flex items-center gap-2">{editingId ? 'Modifier' : 'Ajouter'}</button>
-              {editingId && <button type="button" className="bg-gray-600 px-4 py-2 rounded-lg" onClick={resetForm}>Annuler</button>}
+              {editingId && <button type="button" className="bg-white px-4 py-2 rounded-lg" onClick={resetForm}>Annuler</button>}
             </div>
           </form>
         </div>
@@ -183,13 +181,13 @@ const Admin = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {products.map((p) => (
             <div key={p._id} className="bg-white text-black rounded-xl overflow-hidden border border-fuchsia-300 hover:shadow-lg transition-shadow">
-              <img src={getImageUrl(p.image)} alt={p.name} className="w-full h-48 object-cover" onError={(e)=>e.target.src='https://placehold.co/400x400/374151/fuchsia?text=No+Image'} />
+              <img src={getImageUrl(p.image)} alt={p.name} className="w-full h-48 object-cover" onError={(e)=>e.target.src='https://placehold.co/400x400/FFFFFF/fuchsia?text=No+Image'} />
               <div className="p-4">
                 <h3 className="font-bold text-lg mb-1">{p.name}</h3>
                 <p className="text-gray-700 mb-2 line-clamp-2">{p.description}</p>
                 <p className="text-fuchsia-300 font-bold mb-2">{p.price?.toLocaleString()} FCFA</p>
                 <div className="flex gap-2">
-                  <button className="flex-1 bg-blue-100 text-black px-2 py-1 rounded-lg flex items-center justify-center gap-1" onClick={()=>handleEdit(p)}> <Edit className="w-4 h-4"/> Edit </button>
+                  <button className="flex-1 bg-fuchsia-100 text-black px-2 py-1 rounded-lg flex items-center justify-center gap-1" onClick={()=>handleEdit(p)}> <Edit className="w-4 h-4"/> Edit </button>
                   <button className="flex-1 bg-red-100 text-black px-2 py-1 rounded-lg flex items-center justify-center gap-1" onClick={()=>handleDelete(p._id)}> <Trash2 className="w-4 h-4"/> Delete </button>
                 </div>
               </div>
