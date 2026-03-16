@@ -13,40 +13,40 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
+  // Transforme le chemin de l'image en URL complète
   const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    if (imagePath.startsWith('http')) return imagePath;
-    return `${IMAGE_URL}/${imagePath}`;
+    if (!imagePath) 
+      return 'https://via.placeholder.com/400x400?text=No+Image'; // image par défaut
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${IMAGE_URL}/${cleanPath}`;
   };
 
-const loadProducts = useCallback(async () => {
-  try {
-    console.log('🔄 Chargement des produits depuis le serveur...');
-    const response = await axios.get(`${API_URL}/products`);
+  const loadProducts = useCallback(async () => {
+    try {
+      console.log('🔄 Chargement des produits depuis le serveur...');
+      const response = await axios.get(`${API_URL}/products`);
 
-    let apiProducts = [];
-    if (response.data?.success && response.data?.data) {
-      apiProducts = response.data.data.map(product => ({
-        ...product,
-        image: getImageUrl(product.image) // transforme l'image en URL complète
-      }));
+      let apiProducts = [];
+      if (response.data?.success && response.data?.data) {
+        apiProducts = response.data.data.map(product => ({
+          ...product,
+          image: getImageUrl(product.image)
+        }));
+      }
+
+      // Combine initialProducts + API
+      const allProducts = [...initialProducts, ...apiProducts];
+
+      console.log(`📦 Total produits: ${allProducts.length}`);
+      setProducts(allProducts);
+      setLoading(false);
+      setLastUpdate(Date.now());
+    } catch (error) {
+      console.error('❌ Erreur chargement produits depuis API:', error);
+      setProducts(initialProducts);
+      setLoading(false);
     }
-
-    // Combine initialProducts + API
-    const allProducts = [...initialProducts, ...apiProducts];
-
-    console.log(`📦 Total produits: ${allProducts.length}`);
-    setProducts(allProducts); // ✅ met à jour le state une seule fois
-
-    setLoading(false);
-    setLastUpdate(Date.now());
-  } catch (error) {
-    console.error('❌ Erreur chargement produits depuis API:', error);
-    setProducts(initialProducts); // fallback sur les produits initiaux
-    setLoading(false);
-  }
-}, []);
-
+  }, []);
 
   useEffect(() => {
     loadProducts();
@@ -65,16 +65,12 @@ const loadProducts = useCallback(async () => {
       <Hero />
       <div className="container mx-auto px-4">
         <CarouselBanner />
-        
+
         <section id="products-section" className="my-16 scroll-mt-20">
           <div className="flex justify-between items-center mb-10">
-            <h2 className="text-3xl font-bold text-fuchsia-300">
-              Nos Produits
-            </h2>
+            <h2 className="text-3xl font-bold text-fuchsia-300">Nos Produits</h2>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-400">
-                {products.length} produits
-              </span>
+              <span className="text-sm text-gray-400">{products.length} produits</span>
               <button 
                 className="btn btn-sm btn-ghost text-fuchsia-300 hover:bg-fuchsia-300/10"
                 onClick={loadProducts}
@@ -84,11 +80,11 @@ const loadProducts = useCallback(async () => {
               </button>
             </div>
           </div>
-          
+
           <p className="text-center text-gray-400 mb-12 max-w-2xl mx-auto">
             Découvrez notre sélection de produits cosmiques
           </p>
-          
+
           {products.length === 0 ? (
             <div className="text-center py-10">
               <p className="text-gray-400">Aucun produit disponible pour le moment</p>
@@ -96,7 +92,7 @@ const loadProducts = useCallback(async () => {
           ) : (
             <ProductGrid products={products} />
           )}
-          
+
           <div className="text-center mt-4 text-xs text-gray-500">
             Dernière mise à jour: {new Date(lastUpdate).toLocaleTimeString()}
           </div>
