@@ -13,54 +13,42 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
-  // Fonction pour obtenir l'URL complète de l'image
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http')) return imagePath;
     return `${IMAGE_URL}/${imagePath}`;
   };
 
-  // Fonction de chargement des produits depuis l'API
   const loadProducts = useCallback(async () => {
     try {
       console.log('🔄 Chargement des produits depuis le serveur...');
-
-      // Récupérer tous les produits depuis l'API
       const response = await axios.get(`${API_URL}/products`);
-
-      console.log('✅ Réponse API:', response.data);
 
       let apiProducts = [];
       if (response.data?.success && response.data?.data) {
-        apiProducts = response.data.data;
+        apiProducts = response.data.data.map(product => ({
+          ...product,
+          image: getImageUrl(product.image)
+        }));
       }
 
-      // Transformer les produits API pour ajouter l'URL complète de l'image
-      const formattedApiProducts = apiProducts.map(product => ({
-        ...product,
-        image: getImageUrl(product.image)
-      }));
+      // ✅ Combiner initialProducts + API et filtrer les doublons par id
+      const uniqueProducts = [...initialProducts, ...apiProducts].filter(
+        (product, index, self) =>
+          index === self.findIndex(p => p.id === product.id)
+      );
 
-      console.log(`📦 Produits API: ${formattedApiProducts.length}`);
-      console.log(`📦 Produits initiaux: ${initialProducts.length}`);
-
-      // ✅ Ajouter uniquement les produits de l'API à la fin sans modifier les produits initiaux
-      const allProducts = [...initialProducts, ...formattedApiProducts];
-
-      console.log(`✅ Total: ${allProducts.length} produits`);
-      setProducts(allProducts);
+      console.log(`📦 Total produits uniques: ${uniqueProducts.length}`);
+      setProducts(uniqueProducts);
       setLoading(false);
       setLastUpdate(Date.now());
-
     } catch (error) {
       console.error('❌ Erreur chargement produits depuis API:', error);
-      // En cas d'erreur, on ne touche pas aux initialProducts
       setProducts(initialProducts);
       setLoading(false);
     }
   }, []);
 
-  // Chargement initial
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
@@ -84,12 +72,10 @@ const Home = () => {
             <h2 className="text-3xl font-bold text-fuchsia-300">
               Nos Produits
             </h2>
-            
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-400">
                 {products.length} produits
               </span>
-              
               <button 
                 className="btn btn-sm btn-ghost text-fuchsia-300 hover:bg-fuchsia-300/10"
                 onClick={loadProducts}
