@@ -13,11 +13,11 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
-const getImageUrl = (imagePath) => {
-  if (!imagePath) return null;
-  const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
-  return `${IMAGE_URL}/${cleanPath}`;
-};
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${IMAGE_URL}/${imagePath}`;
+  };
 
 const loadProducts = useCallback(async () => {
   try {
@@ -28,22 +28,25 @@ const loadProducts = useCallback(async () => {
     if (response.data?.success && response.data?.data) {
       apiProducts = response.data.data.map(product => ({
         ...product,
-        image: getImageUrl(product.image)
+        image: getImageUrl(product.image) // transforme l'image en URL complète
       }));
     }
 
+    // Combine initialProducts + API
     const allProducts = [...initialProducts, ...apiProducts];
+
     console.log(`📦 Total produits: ${allProducts.length}`);
-    setProducts(allProducts);
+    setProducts(allProducts); // ✅ met à jour le state une seule fois
 
     setLoading(false);
     setLastUpdate(Date.now());
   } catch (error) {
     console.error('❌ Erreur chargement produits depuis API:', error);
-    setProducts(initialProducts);
+    setProducts(initialProducts); // fallback sur les produits initiaux
     setLoading(false);
   }
 }, []);
+
 
   useEffect(() => {
     loadProducts();
