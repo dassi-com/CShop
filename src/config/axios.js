@@ -1,6 +1,10 @@
 import axios from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'https://api-final-m259.onrender.com/api';
+
+// 🔎 Vérifier si la variable d'environnement fonctionne
+console.log("API URL utilisée :", BASE_URL);
+
 const TIMEOUT = 30000; 
 
 const axiosInstance = axios.create({
@@ -28,6 +32,7 @@ axiosInstance.interceptors.response.use(
     return response.data;
   },
   (error) => {
+
     // Gestion des erreurs de timeout
     if (error.code === 'ECONNABORTED') {
       return Promise.reject({
@@ -36,20 +41,17 @@ axiosInstance.interceptors.response.use(
       });
     }
 
-    // Gestion des erreurs 401 (non autorisé)
+    // Gestion des erreurs 401
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
-      // ✅ NE PAS REDIRIGER VERS /login
-      // On laisse le composant gérer l'état
+
       console.log('Session expirée - utilisateur déconnecté');
-      
-      // Option 1: On peut émettre un événement personnalisé
+
+      // événement personnalisé
       window.dispatchEvent(new Event('unauthorized'));
     }
 
-    // Rejeter avec un message d'erreur approprié
     return Promise.reject({
       message: error.response?.data?.message || 'Erreur de connexion au serveur',
       status: error.response?.status || 'NETWORK_ERROR',
