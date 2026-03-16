@@ -15,6 +15,7 @@ const Home = () => {
 
 const getImageUrl = (imagePath) => {
   if (!imagePath) return null;
+  // Nettoyer le slash de début pour éviter // dans l'URL
   const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
   return `${IMAGE_URL}/${cleanPath}`;
 };
@@ -30,7 +31,15 @@ const getImageUrl = (imagePath) => {
           ...product,
           image: getImageUrl(product.image)
         }));
+
+          console.log('Image API brute:', product.image);
+  return {
+    ...product,
+    image: getImageUrl(product.image)
+  };
       }
+
+ 
 
       // Juste combiner sans filtrer
     const allProducts = [...initialProducts, ...apiProducts];
