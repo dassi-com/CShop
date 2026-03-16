@@ -6,7 +6,7 @@ import axios from 'axios';
 const API_URL = 'https://api-final-m259.onrender.com/api';
 const IMAGE_URL = 'https://api-final-m259.onrender.com';
 
-const AdminDashboard = () => {
+const Admin = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({ name: '', price: '', description: '' });
   const [imageFile, setImageFile] = useState(null);
@@ -66,42 +66,55 @@ const AdminDashboard = () => {
       reader.onerror = (err) => reject(err);
     });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    setLoading(true);
-    const token = localStorage.getItem('token');
+  setLoading(true);
+  const token = localStorage.getItem('token');
 
-    try {
-      let imageBase64 = null;
-      if (imageFile) imageBase64 = await imageToBase64(imageFile);
+  try {
 
-      const productData = {
-        name: formData.name,
-        price: parseFloat(formData.price),
-        description: formData.description,
-        ...(imageBase64 && { image: imageBase64 })
-      };
+    const form = new FormData();
+    form.append("name", formData.name);
+    form.append("price", formData.price);
+    form.append("description", formData.description);
 
-      if (editingId) {
-        await axios.put(`${API_URL}/products/${editingId}`, productData, { headers: { Authorization: `Bearer ${token}` } });
-        setMessage({ text: 'Produit modifié avec succès !', type: 'success' });
-      } else {
-        await axios.post(`${API_URL}/products`, productData, { headers: { Authorization: `Bearer ${token}` } });
-        setMessage({ text: 'Produit ajouté avec succès !', type: 'success' });
-      }
-
-      fetchProducts();
-      resetForm();
-    } catch (error) {
-      console.error(error);
-      setMessage({ text: error.response?.data?.message || 'Erreur lors de l\'opération', type: 'error' });
-    } finally {
-      setLoading(false);
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    if (imageFile) {
+      form.append("image", imageFile);
     }
-  };
+
+    if (editingId) {
+      await axios.put(`${API_URL}/products/${editingId}`, form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        }
+      });
+    } else {
+      await axios.post(`${API_URL}/products`, form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        }
+      });
+    }
+
+    setMessage({ text: "Produit ajouté avec succès !", type: "success" });
+
+    fetchProducts();
+    resetForm();
+
+  } catch (error) {
+    console.error(error);
+    setMessage({
+      text: error.response?.data?.message || "Erreur lors de l'opération",
+      type: "error"
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleEdit = (product) => {
     setFormData({ name: product.name, price: product.price.toString(), description: product.description });
@@ -329,4 +342,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default Admin;
