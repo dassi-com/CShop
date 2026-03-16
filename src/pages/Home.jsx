@@ -15,40 +15,35 @@ const Home = () => {
 
 const getImageUrl = (imagePath) => {
   if (!imagePath) return null;
-  // Nettoyer le slash de début pour éviter // dans l'URL
   const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
   return `${IMAGE_URL}/${cleanPath}`;
 };
 
-  const loadProducts = useCallback(async () => {
-    try {
-      console.log('🔄 Chargement des produits depuis le serveur...');
-      const response = await axios.get(`${API_URL}/products`);
+const loadProducts = useCallback(async () => {
+  try {
+    console.log('🔄 Chargement des produits depuis le serveur...');
+    const response = await axios.get(`${API_URL}/products`);
 
-      let apiProducts = [];
-      if (response.data?.success && response.data?.data) {
-        apiProducts = response.data.data.map(product => ({
-          ...product,
-          image: getImageUrl(product.image)
-        }));
-      }
-
-      
-
-      // Juste combiner sans filtrer
-    const allProducts = [...initialProducts, ...apiProducts];
-     setProducts(allProducts);
-
-      console.log(`📦 Total produits uniques: ${uniqueProducts.length}`);
-      setProducts(uniqueProducts);
-      setLoading(false);
-      setLastUpdate(Date.now());
-    } catch (error) {
-      console.error('❌ Erreur chargement produits depuis API:', error);
-      setProducts(initialProducts);
-      setLoading(false);
+    let apiProducts = [];
+    if (response.data?.success && response.data?.data) {
+      apiProducts = response.data.data.map(product => ({
+        ...product,
+        image: getImageUrl(product.image)
+      }));
     }
-  }, []);
+
+    const allProducts = [...initialProducts, ...apiProducts];
+    console.log(`📦 Total produits: ${allProducts.length}`);
+    setProducts(allProducts);
+
+    setLoading(false);
+    setLastUpdate(Date.now());
+  } catch (error) {
+    console.error('❌ Erreur chargement produits depuis API:', error);
+    setProducts(initialProducts);
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     loadProducts();
