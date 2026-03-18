@@ -42,7 +42,7 @@ const Cart = () => {
   const validateCustomerInfo = () => {
     if (!customerInfo.fullName.trim()) return 'Nom complet requis'
     if (!customerInfo.email.trim() || !/\S+@\S+\.\S+/.test(customerInfo.email)) return 'Email valide requis'
-    if (!customerInfo.phone.trim() || !/^[0-9]{8,12}$/.test(customerInfo.phone)) return 'Téléphone valide requis (8-12 chiffres)'
+    if (!customerInfo.phone.trim()) return 'Téléphone requis'
     if (!customerInfo.address.trim()) return 'Adresse requise'
     if (!customerInfo.city.trim()) return 'Ville requise'
     return null
@@ -256,7 +256,7 @@ const Cart = () => {
                     value={customerInfo.fullName}
                     onChange={handleCustomerInfoChange}
                     className="w-full pl-10 p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300"
-                    placeholder="Jean Dupont"
+                    placeholder="Oumar Diallo"
                     required
                     disabled={processingPayment}
                   />
@@ -273,7 +273,7 @@ const Cart = () => {
                     value={customerInfo.email}
                     onChange={handleCustomerInfoChange}
                     className="w-full pl-10 p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300"
-                    placeholder="jean@email.com"
+                    placeholder="oumar.diallo@email.com"
                     required
                     disabled={processingPayment}
                   />
@@ -290,11 +290,12 @@ const Cart = () => {
                     value={customerInfo.phone}
                     onChange={handleCustomerInfoChange}
                     className="w-full pl-10 p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300"
-                    placeholder="77 123 45 67"
+                    placeholder="+221 77 123 45 67"
                     required
                     disabled={processingPayment}
                   />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">Format: +221 XXXXXXXXX</p>
               </div>
 
               <div>
@@ -307,7 +308,7 @@ const Cart = () => {
                     value={customerInfo.address}
                     onChange={handleCustomerInfoChange}
                     className="w-full pl-10 p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fuchsia-300"
-                    placeholder="123 Rue Principale"
+                    placeholder="123 Rue Principale, Sicap"
                     required
                     disabled={processingPayment}
                   />
