@@ -20,24 +20,35 @@ const Admin = () => {
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      console.log('🔄 Chargement des produits...');
-      
-      // Endpoint pour récupérer tous les produits (public)
-      const response = await axios.get(`${API_URL}/products`);
-      
-      console.log('✅ Réponse produits:', response.data);
-      
-      if (response.data?.success && response.data?.data) {
-        setProducts(response.data.data);
-      }
-    } catch (error) {
-      console.error('❌ Erreur chargement produits:', error);
-      setMessage({ text: 'Erreur chargement des produits', type: 'error' });
+const fetchProducts = async () => {
+  try {
+    // Essayer d'abord sans token (public)
+    console.log('🔄 Chargement des produits (public)...');
+    const response = await axios.get(`${API_URL}/products`);
+    
+    console.log('✅ Réponse produits:', response.data);
+    
+    if (response.data?.success && response.data?.data) {
+      setProducts(response.data.data);
+    } else if (Array.isArray(response.data)) {
+      setProducts(response.data);
     }
-  };
+  } catch (error) {
+    console.error('❌ Erreur chargement produits:', error);
+    
+    // Afficher l'erreur détaillée
+    if (error.response) {
+      console.log('Status:', error.response.status);
+      console.log('Data:', error.response.data);
+      setMessage({ 
+        text: `Erreur ${error.response.status}: Impossible de charger les produits`, 
+        type: 'error' 
+      });
+    } else {
+      setMessage({ text: 'Erreur de connexion au serveur', type: 'error' });
+    }
+  }
+};
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
