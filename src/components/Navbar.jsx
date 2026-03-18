@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ShoppingCart, Star, LogIn, UserPlus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useCart } from '../context/CartContext'
+import { useCart } from '../context/CartContext'  // ← Déjà importé
 import { useAuth } from '../context/AuthContext'
 import LoginModal from '../modals/LoginModal'
 import RegisterModal from '../modals/RegisterModal'
 
 const Navbar = () => {
-  const { getCartCount } = useCart()
+  const { getCartCount, clearCart } = useCart()  // ← AJOUTE clearCart ici
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -29,17 +29,14 @@ const Navbar = () => {
   const getUserInitial = () => {
     if (!user) return '?'
     
-    // Si le nom existe et est une chaîne non vide
     if (user.name && typeof user.name === 'string' && user.name.length > 0) {
       return user.name.charAt(0).toUpperCase()
     }
     
-    // Si l'email existe, prendre la première lettre de l'email
     if (user.email && typeof user.email === 'string' && user.email.length > 0) {
       return user.email.charAt(0).toUpperCase()
     }
     
-    // Valeur par défaut
     return 'U'
   }
 
@@ -52,7 +49,6 @@ const Navbar = () => {
     }
     
     if (user.email && typeof user.email === 'string') {
-      // Extraire le nom de l'email (partie avant le @)
       const emailName = user.email.split('@')[0]
       return emailName || 'Utilisateur'
     }
@@ -61,8 +57,9 @@ const Navbar = () => {
   }
 
   const handleLogout = () => {
-    logout()
-    navigate('/')
+    clearCart()    // ← AJOUTE cette ligne pour vider le panier
+    logout()       // ← Déconnexion
+    navigate('/')  // ← Redirection
   }
 
   return (
@@ -113,7 +110,6 @@ const Navbar = () => {
                   <span className="font-bold text-fuchsia-500">{getUserName()}</span>
                 </li>
                 
-                {/* ✅ LIEN ADMIN - visible seulement pour les admins */}
                 {user?.role === 'admin' && (
                   <li>
                     <Link to="/admin" className="text-fuchsia-500 hover:bg-fuchsia-500/10">
@@ -156,7 +152,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Espace pour compenser la navbar fixed */}
       <div className="h-16"></div>
 
       <AnimatePresence>
