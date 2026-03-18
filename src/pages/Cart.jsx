@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   Trash2, Plus, Minus, ArrowLeft, CreditCard, 
@@ -11,14 +11,30 @@ import axios from 'axios'
 
 const API_URL = 'https://api-final-m259.onrender.com/api'
 
+// Fonction pour charger le SDK CinetPay
+const loadCinetPayScript = () => {
+  return new Promise((resolve, reject) => {
+    if (window.CinetPay) {
+      resolve(window.CinetPay)
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://cdn.cinetpay.com/seamless/main.js'
+    script.async = true
+    script.onload = () => resolve(window.CinetPay)
+    script.onerror = () => reject(new Error('Échec chargement CinetPay'))
+    document.head.appendChild(script)
+  })
+}
+
 const Cart = () => {
   const navigate = useNavigate()
   const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart()
   const { user } = useAuth()
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [paymentStep, setPaymentStep] = useState('form')
   const [processingPayment, setProcessingPayment] = useState(false)
   const [paymentError, setPaymentError] = useState('')
+  const [cinetpayReady, setCinetpayReady] = useState(false)
   
   const [customerInfo, setCustomerInfo] = useState({
     fullName: user?.name || '',
@@ -28,6 +44,16 @@ const Cart = () => {
     city: '',
     deliveryTime: 'standard'
   })
+
+  // Charger le SDK CinetPay au montage du composant
+  useEffect(() => {
+    loadCinetPayScript()
+      .then(() => {
+        console.log('✅ SDK CinetPay chargé')
+        setCinetpayReady(true)
+      })
+      .catch(err => console.error('❌ Erreur chargement CinetPay:', err))
+  }, [])
 
   const handleCustomerInfoChange = (e) => {
     setCustomerInfo({
@@ -82,46 +108,82 @@ const Cart = () => {
         status: 'pending'
       }
 
+      console.log('📤 Création commande:', orderPayload)
+
       const response = await axios.post(`${API_URL}/orders`, orderPayload, {
         headers: { Authorization: `Bearer ${token}` }
       })
+
+      console.log('✅ Commande créée:', response.data)
 
       const orderId = response.data?.order?._id || response.data?.data?._id || response.data?._id
       return { orderId, totalAmount }
       
     } catch (error) {
-      console.error('Erreur création commande:', error)
+      console.error('❌ Erreur création commande:', error)
       throw new Error('Erreur lors de la création de la commande')
     }
   }
 
-  // ✅ SIMPLIFICATION : Envoie juste l'orderId comme demandé par ton collègue
-  const initiateCinetPayPayment = async (orderId) => {
-    try {
-      const token = localStorage.getItem('token')
-      
-      const payload = { orderId } // Seulement l'ID de la commande
-      
-      console.log('📤 Envoi à CinetPay:', payload)
+  // 🔥 NOUVELLE FONCTION : Paiement direct avec CinetPay Seamless
+  const initiateSeamlessPayment = (orderId, totalAmount) => {
+    return new Promise((resolve, reject) => {
+      if (!window.CinetPay) {
+        reject(new Error('SDK CinetPay non chargé'))
+        return
+      }
 
-      const response = await axios.post(`${API_URL}/payments/cinetpay/initiate`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
+      // Configuration CinetPay - REMPLACE CES VALEURS PAR TES PROPRES CLÉS
+      window.CinetPay.setConfig({
+        apikey: '19913935166b055e68378e5.11857920', // 🔴 À REMPLACER
+        site_id: 5934362,                            // 🔴 À REMPLACER
+        notify_url: `${window.location.origin}/payment/notify`,
+        mode: 'PRODUCTION' // ou 'TEST' pour les tests
       })
 
-      console.log('✅ Réponse CinetPay:', response.data)
-      
-      const paymentUrl = response.data?.paymentUrl
-      
-      if (!paymentUrl) {
-        throw new Error('URL de paiement non reçue')
+      // Formater le numéro de téléphone (enlever les espaces)
+      const phoneNumber = customerInfo.phone.replace(/\s/g, '')
+
+      // Données du paiement
+      const paymentData = {
+        transaction_id: orderId,
+        amount: totalAmount,
+        currency: 'XOF',
+        channels: 'ALL',
+        description: `Paiement commande ${orderId}`,
+        customer_name: customerInfo.fullName.split(' ')[0] || customerInfo.fullName,
+        customer_surname: customerInfo.fullName.split(' ')[1] || '',
+        customer_email: customerInfo.email,
+        customer_phone_number: phoneNumber,
+        customer_address: customerInfo.address,
+        customer_city: customerInfo.city,
+        customer_country: 'SN', // Sénégal, à adapter selon le pays
+        customer_state: 'SN',
+        customer_zip_code: '00000'
       }
-      
-      return paymentUrl
-      
-    } catch (error) {
-      console.error('❌ Erreur initiation paiement:', error)
-      throw new Error('Erreur lors de l\'initialisation du paiement')
-    }
+
+      console.log('📤 Lancement paiement CinetPay avec:', paymentData)
+
+      // Lancer le paiement
+      window.CinetPay.getCheckout(paymentData)
+
+      // Attendre la réponse
+      window.CinetPay.waitResponse(function(data) {
+        console.log('📥 Réponse CinetPay:', data)
+        if (data.status === "ACCEPTED") {
+          // Paiement réussi
+          resolve(data)
+        } else if (data.status === "REFUSED") {
+          reject(new Error('Paiement refusé'))
+        }
+      })
+
+      // Gérer les erreurs
+      window.CinetPay.onError(function(error) {
+        console.error('❌ Erreur CinetPay:', error)
+        reject(error)
+      })
+    })
   }
 
   const handleSubmitCustomerInfo = async (e) => {
@@ -135,22 +197,30 @@ const Cart = () => {
       return
     }
 
+    if (!cinetpayReady) {
+      setPaymentError('SDK CinetPay non chargé. Veuillez réessayer.')
+      return
+    }
+
     setProcessingPayment(true)
     setPaymentError('')
 
     try {
       // 1. Créer la commande
-      const { orderId } = await createOrder()
+      const { orderId, totalAmount } = await createOrder()
       
-      // 2. Obtenir l'URL de paiement CinetPay
-      const paymentUrl = await initiateCinetPayPayment(orderId)
+      // 2. Lancer le paiement CinetPay Seamless
+      await initiateSeamlessPayment(orderId, totalAmount)
       
-      // 3. Rediriger vers le site officiel de CinetPay
-      window.location.href = paymentUrl
+      // 3. Si on arrive ici, c'est que le paiement a réussi
+      setShowPaymentModal(false)
+      clearCart()
+      navigate(`/payment/success?orderId=${orderId}`)
       
     } catch (err) {
-      console.error('❌ Erreur:', err)
-      setPaymentError(err.message)
+      console.error('❌ Erreur paiement:', err)
+      setPaymentError(err.message || 'Erreur lors du paiement')
+    } finally {
       setProcessingPayment(false)
     }
   }
@@ -235,6 +305,7 @@ const Cart = () => {
                   disabled={processingPayment}
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">Format: +221 XXXXXXXXX</p>
             </div>
 
             <div>
@@ -285,23 +356,25 @@ const Cart = () => {
 
             <button
               type="submit"
-              disabled={processingPayment}
+              disabled={processingPayment || !cinetpayReady}
               className={`w-full py-3 bg-fuchsia-300 hover:bg-fuchsia-400 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2 ${
-                processingPayment ? 'opacity-50 cursor-not-allowed' : ''
+                (processingPayment || !cinetpayReady) ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
               {processingPayment ? (
                 <>
                   <Loader className="w-4 h-4 animate-spin" />
-                  Redirection vers CinetPay...
+                  Paiement en cours...
                 </>
+              ) : !cinetpayReady ? (
+                'Chargement...'
               ) : (
                 'Payer avec CinetPay'
               )}
             </button>
 
             <p className="text-xs text-center text-gray-500 mt-2">
-              Vous serez redirigé vers le site sécurisé de CinetPay
+              Paiement sécurisé - Ne quittez pas votre site
             </p>
           </form>
         </div>
@@ -350,55 +423,86 @@ const Cart = () => {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <button onClick={() => updateQuantity(item.id, item.quantity - 1)}>
+                    <button 
+                      className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors"
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                    >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <span className="w-8 text-center">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)}>
+                    <span className="w-8 text-center text-gray-800 font-semibold">{item.quantity}</span>
+                    <button 
+                      className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors"
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                    >
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
                   
-                  <div className="text-right">
+                  <div className="text-right min-w-[100px]">
                     <div className="font-bold text-fuchsia-300">
                       {formatPrice(calculateSubtotal(item.price, item.quantity))}
                     </div>
-                    <button onClick={() => removeFromCart(item.id)}>
-                      <Trash2 className="w-5 h-5 text-red-500" />
+                    <button 
+                      className="mt-2 text-red-500 hover:text-red-700 transition-colors"
+                      onClick={() => removeFromCart(item.id)}
+                    >
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
               </div>
             ))}
             
-            <button onClick={clearCart} className="text-red-500">
-              Vider le panier
-            </button>
+            <div className="flex justify-between items-center mt-4">
+              <button 
+                className="flex items-center gap-2 px-4 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                onClick={clearCart}
+              >
+                <Trash2 className="w-4 h-4" />
+                Vider le panier
+              </button>
+              
+              <Link to="/" className="flex items-center gap-2 px-4 py-2 text-fuchsia-300 hover:text-fuchsia-400 hover:bg-fuchsia-50 rounded-lg transition-colors">
+                <ArrowLeft className="w-4 h-4" />
+                Continuer mes achats
+              </Link>
+            </div>
           </div>
           
           {/* Résumé */}
           <div className="lg:w-1/3">
-            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
-              <h2 className="text-xl font-bold text-fuchsia-300 mb-4">Récapitulatif</h2>
-              
-              <div className="border-t pt-4 mb-4">
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total:</span>
-                  <span className="text-fuchsia-300">{formatPrice(calculateTotal(cartItems))}</span>
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 sticky top-24">
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-fuchsia-300 mb-4">Récapitulatif</h2>
+                
+                <div className="space-y-3 mb-4">
+                  {cartItems.map(item => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-gray-600">{item.name} <span className="text-gray-800 font-medium">x{item.quantity}</span></span>
+                      <span className="text-fuchsia-300 font-semibold">{formatPrice(calculateSubtotal(item.price, item.quantity))}</span>
+                    </div>
+                  ))}
                 </div>
+                
+                <div className="border-t border-gray-200 pt-4 mb-4">
+                  <div className="flex justify-between font-bold text-lg">
+                    <span className="text-gray-800">Total:</span>
+                    <span className="text-fuchsia-300">{formatPrice(calculateTotal(cartItems))}</span>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-3 bg-fuchsia-300 hover:bg-fuchsia-400 text-white rounded-lg font-medium flex items-center justify-center gap-2"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Payer avec CinetPay
+                </button>
+                
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  Paiement sécurisé - Mobile Money & Cartes
+                </p>
               </div>
-              
-              <button 
-                onClick={() => setShowPaymentModal(true)}
-                className="w-full py-3 bg-fuchsia-300 hover:bg-fuchsia-400 text-white rounded-lg font-medium"
-              >
-                <CreditCard className="w-4 h-4 inline mr-2" />
-                Payer avec CinetPay
-              </button>
-              
-              <p className="text-xs text-gray-500 text-center mt-2">
-                Paiement sécurisé sur CinetPay
-              </p>
             </div>
           </div>
         </div>
