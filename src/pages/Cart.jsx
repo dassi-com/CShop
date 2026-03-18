@@ -6,6 +6,7 @@ import {
   AlertCircle, Loader
 } from 'lucide-react'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext' // ← IMPORT À AJOUTER
 import { calculateSubtotal, calculateTotal, formatPrice } from '../utils/CartUtils'
 import axios from 'axios'
 
@@ -14,22 +15,21 @@ const API_URL = 'https://api-final-m259.onrender.com/api'
 const Cart = () => {
   const navigate = useNavigate()
   const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart()
+  const { user } = useAuth() // ← AJOUTE cette ligne pour récupérer l'utilisateur
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [paymentStep, setPaymentStep] = useState('method') // method, customer, processing
+  const [paymentStep, setPaymentStep] = useState('method')
   const [processingPayment, setProcessingPayment] = useState(false)
   const [paymentError, setPaymentError] = useState('')
   
-  // États pour les formulaires
   const [customerInfo, setCustomerInfo] = useState({
-    fullName: '',
-    email: '',
+    fullName: user?.name || '', // ← Préremplir avec le nom de l'utilisateur si disponible
+    email: user?.email || '',    // ← Préremplir avec l'email de l'utilisateur si disponible
     phone: '',
     address: '',
     city: '',
     deliveryTime: 'standard'
   })
 
-  // États pour la commande
   const [orderData, setOrderData] = useState(null)
 
   const handleCustomerInfoChange = (e) => {
@@ -48,12 +48,28 @@ const Cart = () => {
     return null
   }
 
-  // Créer la commande dans le backend
+  // Vérifier si l'utilisateur est connecté
+  const checkAuth = () => {
+    const token = localStorage.getItem('token')
+    if (!token || !user) {
+      setPaymentError('Vous devez être connecté pour effectuer un paiement')
+      setTimeout(() => {
+        navigate('/') // Rediriger vers l'accueil
+      }, 2000)
+      return false
+    }
+    return true
+  }
+
   const createOrder = async () => {
     try {
       const token = localStorage.getItem('token')
       
-      // Calculer le total avec frais de livraison
+      // Vérifier à nouveau que le token existe
+      if (!token) {
+        throw new Error('Token non trouvé')
+      }
+
       const deliveryFee = customerInfo.deliveryTime === 'express' ? 2000 : 0
       const totalAmount = calculateTotal(cartItems) + deliveryFee
 
@@ -80,38 +96,52 @@ const Cart = () => {
       console.log('📤 Création commande:', orderPayload)
 
       const response = await axios.post(`${API_URL}/orders`, orderPayload, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
 
       console.log('✅ Commande créée:', response.data)
       
-      // Récupérer l'ID de la commande (selon le format de réponse)
       const orderId = response.data?.order?._id || response.data?.data?._id || response.data?._id
+      
+      if (!orderId) {
+        throw new Error('ID de commande non reçu')
+      }
       
       return { orderId, totalAmount }
       
     } catch (error) {
       console.error('❌ Erreur création commande:', error)
+      if (error.response?.status === 401) {
+        throw new Error('Session expirée. Veuillez vous reconnecter.')
+      }
       throw new Error(error.response?.data?.message || 'Erreur lors de la création de la commande')
     }
   }
 
-  // Initialiser le paiement CinetPay
   const initiateCinetPayPayment = async (orderId, amount) => {
     try {
       const token = localStorage.getItem('token')
       
+      if (!token) {
+        throw new Error('Token non trouvé')
+      }
+
       const payload = { orderId }
       
       console.log('📤 Initiation paiement CinetPay:', payload)
 
       const response = await axios.post(`${API_URL}/payments/cinetpay/initiate`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
 
       console.log('✅ Paiement initié:', response.data)
       
-      // Récupérer l'URL de paiement et l'ID de paiement
       const paymentUrl = response.data?.paymentUrl
       const paymentId = response.data?.paymentId
       
@@ -123,13 +153,29 @@ const Cart = () => {
       
     } catch (error) {
       console.error('❌ Erreur initiation paiement:', error)
+      if (error.response?.status === 401) {
+        throw new Error('Session expirée. Veuillez vous reconnecter.')
+      }
       throw new Error(error.response?.data?.message || 'Erreur lors de l\'initialisation du paiement')
     }
+  }
+
+  const handleOpenPaymentModal = () => {
+    // Vérifier l'authentification avant d'ouvrir le modal
+    if (!checkAuth()) {
+      return
+    }
+    setShowPaymentModal(true)
   }
 
   const handleSubmitCustomerInfo = async (e) => {
     e.preventDefault()
     
+    // Vérifier l'authentification avant de soumettre
+    if (!checkAuth()) {
+      return
+    }
+
     const error = validateCustomerInfo()
     if (error) {
       setPaymentError(error)
@@ -140,19 +186,14 @@ const Cart = () => {
     setPaymentError('')
 
     try {
-      // 1. Créer la commande
       const { orderId, totalAmount } = await createOrder()
       
-      // Sauvegarder les infos pour plus tard
       setOrderData({ orderId, totalAmount, customerInfo })
       
-      // 2. Initier le paiement CinetPay
       const { paymentUrl, paymentId } = await initiateCinetPayPayment(orderId, totalAmount)
       
-      // 3. Sauvegarder l'ID de paiement dans le state
       setOrderData(prev => ({ ...prev, paymentId }))
       
-      // 4. Rediriger vers CinetPay
       window.location.href = paymentUrl
       
     } catch (err) {
@@ -166,7 +207,6 @@ const Cart = () => {
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          {/* En-tête */}
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-2xl font-bold text-fuchsia-300">
               {paymentStep === 'method' && 'Paiement sécurisé'}
@@ -181,7 +221,6 @@ const Cart = () => {
             </button>
           </div>
 
-          {/* Message d'erreur */}
           {paymentError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600">
               <AlertCircle className="w-4 h-4" />
@@ -189,7 +228,6 @@ const Cart = () => {
             </div>
           )}
 
-          {/* Résumé de la commande */}
           <div className="bg-fuchsia-50 p-4 rounded-xl mb-4">
             <p className="text-sm text-fuchsia-700 mb-2">Récapitulatif :</p>
             <div className="space-y-1 text-sm">
@@ -214,7 +252,6 @@ const Cart = () => {
             </div>
           </div>
 
-          {/* Étape 1: Choix de la méthode - FIXÉ SUR CINETPAY */}
           {paymentStep === 'method' && (
             <>
               <div className="space-y-3 mb-6">
@@ -243,7 +280,6 @@ const Cart = () => {
             </>
           )}
 
-          {/* Étape 2: Formulaire client */}
           {paymentStep === 'customer' && (
             <form onSubmit={handleSubmitCustomerInfo} className="space-y-4">
               <div>
@@ -372,7 +408,6 @@ const Cart = () => {
             </form>
           )}
 
-          {/* Étape de traitement */}
           {paymentStep === 'processing' && (
             <div className="text-center py-8">
               <div className="w-20 h-20 bg-fuchsia-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -408,13 +443,11 @@ const Cart = () => {
         <h1 className="text-3xl font-bold text-fuchsia-300 mb-8">Mon Panier</h1>
         
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Cart Items */}
           <div className="lg:w-2/3">
             {cartItems.map(item => (
               <div key={item.id} className="bg-white rounded-xl shadow-lg mb-4 overflow-hidden border border-gray-200">
                 <div className="p-4">
                   <div className="flex flex-col sm:flex-row gap-4">
-                    {/* Product Image */}
                     <div className="sm:w-24 sm:h-24">
                       <img 
                         src={item.image} 
@@ -426,14 +459,12 @@ const Cart = () => {
                       />
                     </div>
                     
-                    {/* Product Details */}
                     <div className="flex-1">
                       <h3 className="font-bold text-gray-800 text-lg">{item.name}</h3>
                       <p className="text-fuchsia-300 font-bold">{formatPrice(item.price)}</p>
                       <p className="text-sm text-gray-600 line-clamp-2">{item.description}</p>
                     </div>
                     
-                    {/* Quantity Controls */}
                     <div className="flex items-center gap-2">
                       <button 
                         className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors"
@@ -450,7 +481,6 @@ const Cart = () => {
                       </button>
                     </div>
                     
-                    {/* Subtotal and Remove */}
                     <div className="text-right min-w-[100px]">
                       <div className="font-bold text-fuchsia-300">
                         {formatPrice(calculateSubtotal(item.price, item.quantity))}
@@ -483,7 +513,6 @@ const Cart = () => {
             </div>
           </div>
           
-          {/* Cart Summary */}
           <div className="lg:w-1/3">
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 sticky top-24">
               <div className="p-6">
@@ -507,7 +536,7 @@ const Cart = () => {
                 
                 <button 
                   className="w-full py-3 bg-fuchsia-300 hover:bg-fuchsia-400 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2 mb-3"
-                  onClick={() => setShowPaymentModal(true)}
+                  onClick={handleOpenPaymentModal} // ← MODIFIÉ
                 >
                   <CreditCard className="w-4 h-4" />
                   Payer avec CinetPay
@@ -524,7 +553,6 @@ const Cart = () => {
           </div>
         </div>
 
-        {/* Payment Modal */}
         {showPaymentModal && <PaymentModal />}
       </div>
     </div>
