@@ -8,6 +8,11 @@ import Cart from './pages/Cart'
 import Admin from './pages/Admin'
 import ProtectedRoute from './routes/ProtectedRoute'
 
+// Import des pages de paiement
+import PaymentSuccess from './pages/payment/PaymentSuccess'
+import PaymentError from './pages/payment/PaymentError'
+import PaymentPending from './pages/payment/PaymentPending'
+
 function App() {
   return (
     <AuthProvider>
@@ -23,6 +28,10 @@ function App() {
                   <Admin />
                 </ProtectedRoute>
               } />
+              {/* Routes de paiement CinetPay */}
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/error" element={<PaymentError />} />
+              <Route path="/payment/pending" element={<PaymentPending />} />
             </Routes>
           </main>
           <Footer />
