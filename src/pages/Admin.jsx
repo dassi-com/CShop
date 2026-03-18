@@ -22,13 +22,20 @@ const Admin = () => {
 
   const fetchProducts = async () => {
     try {
+      const token = localStorage.getItem('token');
+      console.log('🔄 Chargement des produits...');
+      
+      // Endpoint pour récupérer tous les produits (public)
       const response = await axios.get(`${API_URL}/products`);
+      
+      console.log('✅ Réponse produits:', response.data);
+      
       if (response.data?.success && response.data?.data) {
         setProducts(response.data.data);
       }
     } catch (error) {
-      console.error(error);
-      setMessage({ text: 'Erreur chargement produits', type: 'error' });
+      console.error('❌ Erreur chargement produits:', error);
+      setMessage({ text: 'Erreur chargement des produits', type: 'error' });
     }
   };
 
@@ -37,6 +44,19 @@ const Admin = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Validation du type de fichier
+    if (!file.type.startsWith('image/')) {
+      setMessage({ text: 'Veuillez sélectionner une image', type: 'error' });
+      return;
+    }
+    
+    // Limite de taille (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ text: 'Image trop volumineuse (max 5MB)', type: 'error' });
+      return;
+    }
+    
     setImageFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setImagePreview(reader.result);
@@ -51,89 +71,133 @@ const Admin = () => {
   };
 
   const validateForm = () => {
-    if (!formData.name.trim()) return setMessage({ text: 'Nom requis', type: 'error' }), false;
-    if (!formData.price || formData.price <= 0) return setMessage({ text: 'Prix > 0', type: 'error' }), false;
-    if (!imageFile && !editingId) return setMessage({ text: 'Image requise', type: 'error' }), false;
-    if (!formData.description.trim()) return setMessage({ text: 'Description requise', type: 'error' }), false;
+    if (!formData.name.trim()) {
+      setMessage({ text: 'Le nom est requis', type: 'error' });
+      return false;
+    }
+    if (!formData.price || formData.price <= 0) {
+      setMessage({ text: 'Le prix doit être supérieur à 0', type: 'error' });
+      return false;
+    }
+    if (!formData.description.trim()) {
+      setMessage({ text: 'La description est requise', type: 'error' });
+      return false;
+    }
+    // L'image n'est obligatoire que pour la création
+    if (!editingId && !imageFile) {
+      setMessage({ text: 'Une image est requise', type: 'error' });
+      return false;
+    }
     return true;
   };
 
-  const imageToBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (err) => reject(err);
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!validateForm()) return;
+    setLoading(true);
+    const token = localStorage.getItem('token');
 
-  setLoading(true);
-  const token = localStorage.getItem('token');
+    try {
+      const form = new FormData();
+      form.append("name", formData.name);
+      form.append("price", formData.price);
+      form.append("description", formData.description);
 
-  try {
+      if (imageFile) {
+        form.append("image", imageFile);
+      }
 
-    const form = new FormData();
-    form.append("name", formData.name);
-    form.append("price", formData.price);
-    form.append("description", formData.description);
+      let response;
 
-    if (imageFile) {
-      form.append("image", imageFile);
-    }
+      if (editingId) {
+        // MODIFICATION - PUT avec query param _id
+        response = await axios.put(`${API_URL}/products/update-product?_id=${editingId}`, form, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        });
+        setMessage({ text: "✅ Produit modifié avec succès !", type: "success" });
+      } else {
+        // CRÉATION - POST /add-product
+        response = await axios.post(`${API_URL}/products/add-product`, form, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        });
+        setMessage({ text: "✅ Produit ajouté avec succès !", type: "success" });
+      }
 
-    if (editingId) {
-      await axios.put(`${API_URL}/products/${editingId}`, form, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data"
-        }
+      console.log('✅ Réponse:', response.data);
+
+      // Recharger la liste des produits
+      await fetchProducts();
+      resetForm();
+
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      
+      // Afficher le message d'erreur du backend si disponible
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          "Erreur lors de l'opération";
+      
+      setMessage({
+        text: errorMessage,
+        type: "error"
       });
-    } else {
-      await axios.post(`${API_URL}/products`, form, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data"
-        }
-      });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage({ text: '', type: '' }), 5000);
     }
-
-    setMessage({ text: "Produit ajouté avec succès !", type: "success" });
-
-    fetchProducts();
-    resetForm();
-
-  } catch (error) {
-    console.error(error);
-    setMessage({
-      text: error.response?.data?.message || "Erreur lors de l'opération",
-      type: "error"
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleEdit = (product) => {
-    setFormData({ name: product.name, price: product.price.toString(), description: product.description });
-    setImagePreview(product.image?.startsWith('data:image') ? product.image : `${IMAGE_URL}/${product.image}`);
+    setFormData({
+      name: product.name,
+      price: product.price.toString(),
+      description: product.description
+    });
+    
+    // Prévisualisation de l'image existante
+    if (product.image) {
+      if (product.image.startsWith('data:image')) {
+        setImagePreview(product.image);
+      } else {
+        setImagePreview(`${IMAGE_URL}/${product.image}`);
+      }
+    }
+    
     setEditingId(product._id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Supprimer ce produit ?')) return;
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) return;
+    
     setLoading(true);
     const token = localStorage.getItem('token');
+    
     try {
-      await axios.delete(`${API_URL}/products/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setMessage({ text: 'Produit supprimé avec succès !', type: 'success' });
-      fetchProducts();
+      // SUPPRESSION - DELETE avec query param _id
+      const response = await axios.delete(`${API_URL}/products/delete-product?_id=${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      console.log('✅ Réponse suppression:', response.data);
+      setMessage({ text: '🗑️ Produit supprimé avec succès !', type: 'success' });
+      
+      // Recharger la liste
+      await fetchProducts();
+
     } catch (error) {
-      console.error(error);
-      setMessage({ text: 'Erreur lors de la suppression', type: 'error' });
+      console.error('❌ Erreur suppression:', error);
+      setMessage({ 
+        text: error.response?.data?.message || 'Erreur lors de la suppression', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
@@ -237,10 +301,18 @@ const Admin = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Image du produit</label>
               <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer bg-fuchsia-100 hover:bg-fuchsia-200 text-gray-700 px-4 py-2 rounded-lg border border-fuchsia-300 transition-colors">
+                <label className={`flex items-center gap-2 cursor-pointer bg-fuchsia-100 hover:bg-fuchsia-200 text-gray-700 px-4 py-2 rounded-lg border border-fuchsia-300 transition-colors ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}>
                   <Upload className="w-4 h-4" /> 
                   Choisir une image
-                  <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} disabled={loading} />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleImageChange} 
+                    disabled={loading} 
+                  />
                 </label>
                 {imagePreview && <span className="text-sm text-gray-500">Image sélectionnée ✓</span>}
               </div>
@@ -281,6 +353,7 @@ const Admin = () => {
                   type="button" 
                   className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-lg transition-colors font-medium"
                   onClick={resetForm}
+                  disabled={loading}
                 >
                   Annuler
                 </button>
@@ -315,12 +388,14 @@ const Admin = () => {
                       <button 
                         className="flex-1 bg-fuchsia-50 hover:bg-fuchsia-100 text-gray-700 px-3 py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"
                         onClick={() => handleEdit(p)}
+                        disabled={loading}
                       >
                         <Edit className="w-4 h-4" /> Modifier
                       </button>
                       <button 
                         className="flex-1 bg-red-50 hover:bg-red-100 text-gray-700 px-3 py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"
                         onClick={() => handleDelete(p._id)}
+                        disabled={loading}
                       >
                         <Trash2 className="w-4 h-4" /> Supprimer
                       </button>

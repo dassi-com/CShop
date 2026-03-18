@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   Trash2, Plus, Minus, ArrowLeft, CreditCard, 
@@ -11,22 +11,6 @@ import axios from 'axios'
 
 const API_URL = 'https://api-final-m259.onrender.com/api'
 
-// Fonction pour charger le SDK CinetPay
-const loadCinetPayScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.CinetPay) {
-      resolve(window.CinetPay)
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://cdn.cinetpay.com/seamless/main.js'
-    script.async = true
-    script.onload = () => resolve(window.CinetPay)
-    script.onerror = () => reject(new Error('Échec chargement CinetPay'))
-    document.head.appendChild(script)
-  })
-}
-
 const Cart = () => {
   const navigate = useNavigate()
   const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart()
@@ -34,7 +18,6 @@ const Cart = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [processingPayment, setProcessingPayment] = useState(false)
   const [paymentError, setPaymentError] = useState('')
-  const [cinetpayReady, setCinetpayReady] = useState(false)
   
   const [customerInfo, setCustomerInfo] = useState({
     fullName: user?.name || '',
@@ -44,16 +27,6 @@ const Cart = () => {
     city: '',
     deliveryTime: 'standard'
   })
-
-  // Charger le SDK CinetPay au montage du composant
-  useEffect(() => {
-    loadCinetPayScript()
-      .then(() => {
-        console.log('✅ SDK CinetPay chargé')
-        setCinetpayReady(true)
-      })
-      .catch(err => console.error('❌ Erreur chargement CinetPay:', err))
-  }, [])
 
   const handleCustomerInfoChange = (e) => {
     setCustomerInfo({
@@ -108,82 +81,50 @@ const Cart = () => {
         status: 'pending'
       }
 
-      console.log('📤 Création commande:', orderPayload)
-
       const response = await axios.post(`${API_URL}/orders`, orderPayload, {
         headers: { Authorization: `Bearer ${token}` }
       })
-
-      console.log('✅ Commande créée:', response.data)
 
       const orderId = response.data?.order?._id || response.data?.data?._id || response.data?._id
       return { orderId, totalAmount }
       
     } catch (error) {
-      console.error('❌ Erreur création commande:', error)
+      console.error('Erreur création commande:', error)
       throw new Error('Erreur lors de la création de la commande')
     }
   }
 
-  // 🔥 NOUVELLE FONCTION : Paiement direct avec CinetPay Seamless
-  const initiateSeamlessPayment = (orderId, totalAmount) => {
-    return new Promise((resolve, reject) => {
-      if (!window.CinetPay) {
-        reject(new Error('SDK CinetPay non chargé'))
-        return
+  // ✅ CORRECTION : Appel à l'API backend qui retourne l'URL de paiement CinetPay
+  const initiateCinetPayPayment = async (orderId) => {
+    try {
+      const token = localStorage.getItem('token')
+      
+      // Ton backend attend juste l'orderId
+      const payload = { orderId } 
+      
+      console.log('📤 Envoi à CinetPay:', payload)
+
+      // Appel à TON backend, pas directement à l'API CinetPay
+      const response = await axios.post(`${API_URL}/payments/cinetpay/initiate`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      console.log('✅ Réponse du backend:', response.data)
+      
+      // Ton backend doit retourner l'URL de paiement CinetPay
+      const paymentUrl = response.data?.paymentUrl
+      
+      if (!paymentUrl) {
+        throw new Error('URL de paiement non reçue')
       }
-
-      // Configuration CinetPay - REMPLACE CES VALEURS PAR TES PROPRES CLÉS
-      window.CinetPay.setConfig({
-        apikey: '19913935166b055e68378e5.11857920', // 🔴 À REMPLACER
-        site_id: 5934362,                            // 🔴 À REMPLACER
-        notify_url: `${window.location.origin}/payment/notify`,
-        mode: 'PRODUCTION' // ou 'TEST' pour les tests
-      })
-
-      // Formater le numéro de téléphone (enlever les espaces)
-      const phoneNumber = customerInfo.phone.replace(/\s/g, '')
-
-      // Données du paiement
-      const paymentData = {
-        transaction_id: orderId,
-        amount: totalAmount,
-        currency: 'XOF',
-        channels: 'ALL',
-        description: `Paiement commande ${orderId}`,
-        customer_name: customerInfo.fullName.split(' ')[0] || customerInfo.fullName,
-        customer_surname: customerInfo.fullName.split(' ')[1] || '',
-        customer_email: customerInfo.email,
-        customer_phone_number: phoneNumber,
-        customer_address: customerInfo.address,
-        customer_city: customerInfo.city,
-        customer_country: 'SN', // Sénégal, à adapter selon le pays
-        customer_state: 'SN',
-        customer_zip_code: '00000'
-      }
-
-      console.log('📤 Lancement paiement CinetPay avec:', paymentData)
-
-      // Lancer le paiement
-      window.CinetPay.getCheckout(paymentData)
-
-      // Attendre la réponse
-      window.CinetPay.waitResponse(function(data) {
-        console.log('📥 Réponse CinetPay:', data)
-        if (data.status === "ACCEPTED") {
-          // Paiement réussi
-          resolve(data)
-        } else if (data.status === "REFUSED") {
-          reject(new Error('Paiement refusé'))
-        }
-      })
-
-      // Gérer les erreurs
-      window.CinetPay.onError(function(error) {
-        console.error('❌ Erreur CinetPay:', error)
-        reject(error)
-      })
-    })
+      
+      return paymentUrl
+      
+    } catch (error) {
+      console.error('❌ Erreur initiation paiement:', error)
+      // Afficher un message d'erreur plus détaillé si possible
+      throw new Error(error.response?.data?.message || 'Erreur lors de l\'initialisation du paiement')
+    }
   }
 
   const handleSubmitCustomerInfo = async (e) => {
@@ -197,34 +138,28 @@ const Cart = () => {
       return
     }
 
-    if (!cinetpayReady) {
-      setPaymentError('SDK CinetPay non chargé. Veuillez réessayer.')
-      return
-    }
-
     setProcessingPayment(true)
     setPaymentError('')
 
     try {
       // 1. Créer la commande
-      const { orderId, totalAmount } = await createOrder()
+      const { orderId } = await createOrder()
       
-      // 2. Lancer le paiement CinetPay Seamless
-      await initiateSeamlessPayment(orderId, totalAmount)
+      // 2. Obtenir l'URL de paiement CinetPay depuis TON backend
+      const paymentUrl = await initiateCinetPayPayment(orderId)
       
-      // 3. Si on arrive ici, c'est que le paiement a réussi
-      setShowPaymentModal(false)
-      clearCart()
-      navigate(`/payment/success?orderId=${orderId}`)
+      // 3. Rediriger vers le site officiel de CinetPay
+      window.location.href = paymentUrl
       
     } catch (err) {
-      console.error('❌ Erreur paiement:', err)
-      setPaymentError(err.message || 'Erreur lors du paiement')
+      console.error('❌ Erreur:', err)
+      setPaymentError(err.message || 'Une erreur est survenue')
     } finally {
       setProcessingPayment(false)
     }
   }
 
+  // --- Le reste du composant (JSX du modal et de l'affichage) reste IDENTIQUE ---
   const PaymentModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
@@ -305,7 +240,6 @@ const Cart = () => {
                   disabled={processingPayment}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Format: +221 XXXXXXXXX</p>
             </div>
 
             <div>
@@ -356,25 +290,23 @@ const Cart = () => {
 
             <button
               type="submit"
-              disabled={processingPayment || !cinetpayReady}
+              disabled={processingPayment}
               className={`w-full py-3 bg-fuchsia-300 hover:bg-fuchsia-400 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2 ${
-                (processingPayment || !cinetpayReady) ? 'opacity-50 cursor-not-allowed' : ''
+                processingPayment ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
               {processingPayment ? (
                 <>
                   <Loader className="w-4 h-4 animate-spin" />
-                  Paiement en cours...
+                  Redirection vers CinetPay...
                 </>
-              ) : !cinetpayReady ? (
-                'Chargement...'
               ) : (
                 'Payer avec CinetPay'
               )}
             </button>
 
             <p className="text-xs text-center text-gray-500 mt-2">
-              Paiement sécurisé - Ne quittez pas votre site
+              Vous serez redirigé vers le site sécurisé de CinetPay
             </p>
           </form>
         </div>
@@ -500,7 +432,7 @@ const Cart = () => {
                 </button>
                 
                 <p className="text-xs text-gray-500 text-center mt-2">
-                  Paiement sécurisé - Mobile Money & Cartes
+                  Paiement sécurisé sur CinetPay
                 </p>
               </div>
             </div>
