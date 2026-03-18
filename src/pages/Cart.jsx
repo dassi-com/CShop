@@ -121,44 +121,75 @@ const Cart = () => {
     }
   }
 
-  const initiateCinetPayPayment = async (orderId, amount) => {
-    try {
-      const token = localStorage.getItem('token')
-      
-      if (!token) {
-        throw new Error('Token non trouvé')
-      }
-
-      const payload = { orderId }
-      
-      console.log('📤 Initiation paiement CinetPay:', payload)
-
-      const response = await axios.post(`${API_URL}/payments/cinetpay/initiate`, payload, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      console.log('✅ Paiement initié:', response.data)
-      
-      const paymentUrl = response.data?.paymentUrl
-      const paymentId = response.data?.paymentId
-      
-      if (!paymentUrl) {
-        throw new Error('URL de paiement non reçue')
-      }
-      
-      return { paymentUrl, paymentId }
-      
-    } catch (error) {
-      console.error('❌ Erreur initiation paiement:', error)
-      if (error.response?.status === 401) {
-        throw new Error('Session expirée. Veuillez vous reconnecter.')
-      }
-      throw new Error(error.response?.data?.message || 'Erreur lors de l\'initialisation du paiement')
+const initiateCinetPayPayment = async (orderId, amount) => {
+  try {
+    const token = localStorage.getItem('token')
+    
+    if (!token) {
+      throw new Error('Token non trouvé')
     }
+
+    // Construction de la payload complète pour CinetPay
+    const payload = {
+      orderId: orderId,
+      amount: amount,
+      currency: 'XOF', // ou XAF selon le pays
+      description: `Paiement commande ${orderId}`,
+      customer: {
+        name: customerInfo.fullName,
+        email: customerInfo.email,
+        phone_number: customerInfo.phone,
+        address: customerInfo.address,
+        city: customerInfo.city
+      },
+      notify_url: `${window.location.origin}/payment/notify`, // URL de notification
+      return_url: `${window.location.origin}/payment/return?orderId=${orderId}`, // URL de retour
+      channels: 'ALL' // MOBILE_MONEY, CREDIT_CARD, WALLET
+    }
+    
+    console.log('📤 Initiation paiement CinetPay:', payload)
+
+    const response = await axios.post(`${API_URL}/payments/cinetpay/initiate`, payload, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('✅ Paiement initié:', response.data)
+    
+    const paymentUrl = response.data?.paymentUrl
+    const paymentId = response.data?.paymentId
+    
+    if (!paymentUrl) {
+      throw new Error('URL de paiement non reçue')
+    }
+    
+    return { paymentUrl, paymentId }
+    
+  } catch (error) {
+    console.error('❌ Erreur initiation paiement:', error)
+    
+    // Affiche plus de détails sur l'erreur
+    if (error.response) {
+      console.log('Status:', error.response.status)
+      console.log('Data:', error.response.data)
+      console.log('Headers:', error.response.headers)
+      
+      // Utilise le message d'erreur du backend si disponible
+      const backendMessage = error.response.data?.message || error.response.data?.error
+      if (backendMessage) {
+        throw new Error(backendMessage)
+      }
+    }
+    
+    if (error.response?.status === 401) {
+      throw new Error('Session expirée. Veuillez vous reconnecter.')
+    }
+    
+    throw new Error(error.response?.data?.message || 'Erreur lors de l\'initialisation du paiement')
   }
+}
 
   const handleOpenPaymentModal = () => {
     // Vérifier l'authentification avant d'ouvrir le modal
@@ -168,40 +199,42 @@ const Cart = () => {
     setShowPaymentModal(true)
   }
 
-  const handleSubmitCustomerInfo = async (e) => {
-    e.preventDefault()
-    
-    // Vérifier l'authentification avant de soumettre
-    if (!checkAuth()) {
-      return
-    }
+const handleSubmitCustomerInfo = async (e) => {
+  e.preventDefault()
+  
+  if (!checkAuth()) return
 
-    const error = validateCustomerInfo()
-    if (error) {
-      setPaymentError(error)
-      return
-    }
-
-    setProcessingPayment(true)
-    setPaymentError('')
-
-    try {
-      const { orderId, totalAmount } = await createOrder()
-      
-      setOrderData({ orderId, totalAmount, customerInfo })
-      
-      const { paymentUrl, paymentId } = await initiateCinetPayPayment(orderId, totalAmount)
-      
-      setOrderData(prev => ({ ...prev, paymentId }))
-      
-      window.location.href = paymentUrl
-      
-    } catch (err) {
-      console.error('❌ Erreur:', err)
-      setPaymentError(err.message || 'Une erreur est survenue')
-      setProcessingPayment(false)
-    }
+  const error = validateCustomerInfo()
+  if (error) {
+    setPaymentError(error)
+    return
   }
+
+  setProcessingPayment(true)
+  setPaymentError('')
+
+  try {
+    // 1. Créer la commande
+    const { orderId, totalAmount } = await createOrder()
+    setOrderData({ orderId, totalAmount, customerInfo })
+    
+    // 2. Ici, assure-toi que customerInfo contient toutes les infos nécessaires
+    console.log('👤 Infos client pour paiement:', customerInfo)
+    
+    // 3. Initier le paiement CinetPay avec les infos client
+    const { paymentUrl, paymentId } = await initiateCinetPayPayment(orderId, totalAmount)
+    
+    setOrderData(prev => ({ ...prev, paymentId }))
+    
+    // 4. Rediriger
+    window.location.href = paymentUrl
+    
+  } catch (err) {
+    console.error('❌ Erreur:', err)
+    setPaymentError(err.message || 'Une erreur est survenue')
+    setProcessingPayment(false)
+  }
+}
 
   const PaymentModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
