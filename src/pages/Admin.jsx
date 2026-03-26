@@ -42,13 +42,13 @@ const Admin = () => {
         
         // Étape 2: Si des produits n'ont pas d'image, tenter de les récupérer
         if (initialStats.withoutImages > 0) {
-          console.log('🔄 Tentative de récupération des images manquantes...')
+          console.log(' Tentative de récupération des images manquantes...')
           response.data = await fetchMissingImages(response.data)
           
           // Vérifier si les images ont été récupérées
           const finalStats = debugProductImages(response.data)
           if (finalStats.withoutImages > 0) {
-            console.warn(`⚠️ Toujours ${finalStats.withoutImages} produits sans image après tentative`)
+            console.warn(` Toujours ${finalStats.withoutImages} produits sans image après tentative`)
           }
         }
         
@@ -137,10 +137,10 @@ const Admin = () => {
 
       if (editingId) {
         await productService.updateProduct(editingId, form)
-        setProductMessage({ text: '✅ Produit modifié avec succès !', type: 'success' })
+        setProductMessage({ text: ' Produit modifié avec succès !', type: 'success' })
       } else {
         await productService.createProduct(form)
-        setProductMessage({ text: '✅ Produit ajouté avec succès !', type: 'success' })
+        setProductMessage({ text: ' Produit ajouté avec succès !', type: 'success' })
       }
 
       // Attendre un peu avant de rafraîchir pour laisser le backend traiter
@@ -176,7 +176,7 @@ const Admin = () => {
     setLoadingProducts(true)
     try {
       await productService.deleteProduct(id)
-      setProductMessage({ text: '🗑️ Produit supprimé !', type: 'success' })
+      setProductMessage({ text: ' Produit supprimé !', type: 'success' })
       await fetchProducts()
     } catch (error) {
       const msg = error?.data?.message || error?.message || 'Erreur lors de la suppression'
