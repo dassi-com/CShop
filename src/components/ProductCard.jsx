@@ -8,9 +8,27 @@ import { getImageUrl } from '../services/productService'
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart()
 
-  const imgSrc = product.image?.startsWith('http')
-    ? product.image
-    : getImageUrl(product.image)
+  // Construire l'URL de l'image avec gestion robuste
+  let imgSrc
+  if (!product.image) {
+    // Si pas d'image, générer un placeholder avec le nom du produit
+    const encodedName = encodeURIComponent(product.name || 'Product')
+    imgSrc = `https://placehold.co/400x400/c084fc/1a1a2e?text=${encodedName}`
+    console.warn(`[ProductCard] "${product.name}" - image undefined, utilisation placeholder`)
+  } else if (product.image.startsWith('http')) {
+    imgSrc = product.image
+  } else {
+    imgSrc = getImageUrl(product.image)
+  }
+
+  // Log pour déboguer
+  console.log(`[ProductCard] ${product.name} - image: ${product.image || 'undefined'} -> URL: ${imgSrc}`)
+
+  const handleImageError = (e) => {
+    console.error(`[ProductCard] Erreur chargement image pour ${product.name}:`, e.target.src)
+    // Fallback : utiliser une image placeholder générique
+    e.target.src = `https://placehold.co/400x400/c084fc/1a1a2e?text=${encodeURIComponent(product.name)}`
+  }
 
   return (
     <motion.div
@@ -25,9 +43,8 @@ const ProductCard = ({ product }) => {
           src={imgSrc}
           alt={product.name}
           className="rounded-xl h-48 w-full object-cover"
-          onError={(e) => {
-            e.target.src = 'https://placehold.co/400x400/1a1a2e/c084fc?text=No+Image'
-          }}
+          onError={handleImageError}
+          loading="lazy"
         />
       </figure>
       <div className="card-body">

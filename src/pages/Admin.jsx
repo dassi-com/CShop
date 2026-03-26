@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext'
 import { PlusCircle, Trash2, Edit, Save, X, AlertCircle, Upload, Package, DollarSign, ShoppingBag } from 'lucide-react'
 import productService, { getImageUrl } from '../services/productService'
 import orderService from '../services/cartService'
+import { debugProductImages, logProductResponse } from '../utils/ImageDebugger'
+import { fetchMissingImages } from '../utils/ImageFixer'
 
 const Admin = () => {
   const { user } = useAuth()
@@ -31,9 +33,28 @@ const Admin = () => {
   const fetchProducts = async () => {
     setLoadingProducts(true)
     try {
-      const response = await productService.getAllProducts()
+      let response = await productService.getAllProducts()
+      logProductResponse(response)
+      
       if (response?.success && Array.isArray(response?.data)) {
+        // Étape 1: Afficher l'état initial
+        const initialStats = debugProductImages(response.data)
+        
+        // Étape 2: Si des produits n'ont pas d'image, tenter de les récupérer
+        if (initialStats.withoutImages > 0) {
+          console.log('🔄 Tentative de récupération des images manquantes...')
+          response.data = await fetchMissingImages(response.data)
+          
+          // Vérifier si les images ont été récupérées
+          const finalStats = debugProductImages(response.data)
+          if (finalStats.withoutImages > 0) {
+            console.warn(`⚠️ Toujours ${finalStats.withoutImages} produits sans image après tentative`)
+          }
+        }
+        
         setProducts(response.data)
+      } else {
+        console.warn('[fetchProducts] Réponse invalide:', response)
       }
     } catch (error) {
       console.error('Erreur chargement produits:', error)
@@ -104,7 +125,15 @@ const Admin = () => {
       form.append('name', formData.name)
       form.append('price', formData.price)
       form.append('description', formData.description)
-      if (imageFile) form.append('image', imageFile)
+      
+      // Pour une nouvelle création, l'image est obligatoire (déjà vérifiée par validateForm)
+      // Pour une modification, l'image est optionnelle
+      if (imageFile) {
+        form.append('image', imageFile)
+        console.log('[handleSubmit] Image uploadée:', imageFile.name)
+      } else if (editingId) {
+        console.log('[handleSubmit] Modification sans changement d\'image')
+      }
 
       if (editingId) {
         await productService.updateProduct(editingId, form)
@@ -114,11 +143,15 @@ const Admin = () => {
         setProductMessage({ text: '✅ Produit ajouté avec succès !', type: 'success' })
       }
 
-      await fetchProducts()
-      resetForm()
+      // Attendre un peu avant de rafraîchir pour laisser le backend traiter
+      setTimeout(() => {
+        fetchProducts()
+        resetForm()
+      }, 500)
     } catch (error) {
       const msg = error?.data?.message || error?.message || "Erreur lors de l'opération"
       setProductMessage({ text: msg, type: 'error' })
+      console.error('[handleSubmit] Erreur:', error)
     } finally {
       setLoadingProducts(false)
       setTimeout(() => setProductMessage({ text: '', type: '' }), 5000)
@@ -126,8 +159,14 @@ const Admin = () => {
   }
 
   const handleEdit = (product) => {
+    console.log('[handleEdit] Produit sélectionné:', product.name, 'Image:', product.image)
     setFormData({ name: product.name, price: product.price.toString(), description: product.description })
-    setImagePreview(getImageUrl(product.image))
+    
+    // Afficher l'image existante ou un placeholder
+    const imgUrl = getImageUrl(product.image)
+    console.log('[handleEdit] Image URL générée:', imgUrl)
+    setImagePreview(imgUrl)
+    setImageFile(null) // Important: réinitialiser imageFile
     setEditingId(product._id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
