@@ -1,4 +1,3 @@
-// routes/ProtectedRoute.js
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -6,11 +5,14 @@ const ProtectedRoute = ({ children }) => {
   const { user, isAdmin, loading } = useAuth()
 
   if (loading) {
-    return <div className="loading loading-spinner loading-lg text-fuchsia-500"></div>
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="loading loading-spinner loading-lg text-fuchsia-500"></div>
+      </div>
+    )
   }
 
   if (!user || !isAdmin) {
-    // ✅ Rediriger vers l'accueil, pas vers /login
     return <Navigate to="/" replace />
   }
 

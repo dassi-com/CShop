@@ -1,35 +1,36 @@
-import axios from '../config/axios';
+import axiosInstance from '../config/axios'
 
 const orderService = {
-  // Récupérer toutes les commandes
+  // GET /api/orders – commandes de l'utilisateur connecté
   getOrders: async () => {
-    try {
-      const response = await axios.get('/orders');
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosInstance.get('/orders')
+    return response
   },
 
-  // Récupérer une commande par ID
+  // GET /api/orders/:id
   getOrderById: async (id) => {
-    try {
-      const response = await axios.get(`/orders/${id}`);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosInstance.get(`/orders/${id}`)
+    return response
   },
 
-  // Créer une commande
-  createOrder: async (orderData) => {
-    try {
-      const response = await axios.post('/orders', orderData);
-      return response;
-    } catch (error) {
-      throw error;
+  // POST /api/orders – crée une commande
+  // API attend : { items: [{ productId, quantity }] }
+  createOrder: async (items) => {
+    const payload = {
+      items: items.map(item => ({
+        productId: item._id || item.id,
+        quantity: item.quantity,
+      })),
     }
-  }
-};
+    const response = await axiosInstance.post('/orders', payload)
+    return response
+  },
 
-export default orderService;
+  // PUT /api/orders/:id/cancel
+  cancelOrder: async (id) => {
+    const response = await axiosInstance.put(`/orders/${id}/cancel`)
+    return response
+  },
+}
+
+export default orderService

@@ -14,21 +14,20 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const isAdmin = user?.role === 'admin'
+  // isAdmin : vérifie le tableau roles renvoyé par l'API (après populate)
+  const isAdmin = user?.roles?.some(r =>
+    (typeof r === 'object' ? r?.name : r) === 'admin'
+  ) || false
 
   useEffect(() => {
     const loadUserFromStorage = () => {
       try {
         const storedUser = localStorage.getItem('user')
         const storedToken = localStorage.getItem('token')
-        
-        // Vérifier si storedUser existe et n'est pas "undefined"
         if (storedUser && storedToken && storedUser !== 'undefined') {
           const parsedUser = JSON.parse(storedUser)
           setUser(parsedUser)
-          console.log('Utilisateur chargé:', parsedUser)
         } else {
-          // Nettoyer le localStorage si les données sont invalides
           localStorage.removeItem('user')
           localStorage.removeItem('token')
         }
@@ -40,11 +39,10 @@ export const AuthProvider = ({ children }) => {
         setLoading(false)
       }
     }
-
     loadUserFromStorage()
   }, [])
 
-  const login = async (userData, token) => {
+  const login = (userData, token) => {
     try {
       localStorage.setItem('user', JSON.stringify(userData))
       localStorage.setItem('token', token)
@@ -56,22 +54,11 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const register = async (userData, token) => {
-    try {
-      localStorage.setItem('user', JSON.stringify(userData))
-      localStorage.setItem('token', token)
-      setUser(userData)
-      return true
-    } catch (error) {
-      console.error('Erreur register:', error)
-      return false
-    }
-  }
-
   const logout = () => {
     setUser(null)
     localStorage.removeItem('user')
     localStorage.removeItem('token')
+    localStorage.removeItem('cart')
   }
 
   const value = {
@@ -79,8 +66,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     loading,
     login,
-    register,
-    logout
+    logout,
   }
 
   return (

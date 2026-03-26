@@ -10,33 +10,42 @@ export const useCart = () => {
   return context
 }
 
+// Normalise un produit pour avoir un champ `id` uniforme (API utilise _id)
+const normalizeProduct = (product) => ({
+  ...product,
+  id: product._id || product.id,
+})
+
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([])
 
-  // Load cart from localStorage on initial render
   useEffect(() => {
     const savedCart = localStorage.getItem('cart')
     if (savedCart) {
-      setCartItems(JSON.parse(savedCart))
+      try {
+        setCartItems(JSON.parse(savedCart))
+      } catch {
+        localStorage.removeItem('cart')
+      }
     }
   }, [])
 
-  // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cartItems))
   }, [cartItems])
 
   const addToCart = (product) => {
+    const normalized = normalizeProduct(product)
     setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id)
+      const existingItem = prevItems.find(item => item.id === normalized.id)
       if (existingItem) {
         return prevItems.map(item =>
-          item.id === product.id
+          item.id === normalized.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         )
       }
-      return [...prevItems, { ...product, quantity: 1 }]
+      return [...prevItems, { ...normalized, quantity: 1 }]
     })
   }
 
@@ -58,6 +67,7 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = () => {
     setCartItems([])
+    localStorage.removeItem('cart')
   }
 
   const getCartTotal = () => {
@@ -75,7 +85,7 @@ export const CartProvider = ({ children }) => {
     updateQuantity,
     clearCart,
     getCartTotal,
-    getCartCount
+    getCartCount,
   }
 
   return (

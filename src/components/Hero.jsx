@@ -32,7 +32,7 @@ const Hero = () => {
             variants={textVariants}
             transition={{ delay: 0.2 }}
           >
-            Welcome CShop
+            Bienvenue sur CShop. Votre plateforme d'achats de vos produits
           </motion.h1>
           
           <motion.p 
@@ -42,7 +42,7 @@ const Hero = () => {
             variants={textVariants}
             transition={{ delay: 0.4 }}
           >
-            Discover amazing products from across the galaxy
+            Découvrez notre large gamme d'articles et de produits de qualité supérieure
           </motion.p>
           
           <motion.button 
@@ -55,7 +55,7 @@ const Hero = () => {
             whileTap={{ scale: 0.95 }}
             onClick={scrollToProducts}
           >
-            Shop Now <ArrowRight className="w-4 h-4 ml-2" />
+            Acheter maintenant <ArrowRight className="w-4 h-4 ml-2" />
           </motion.button>
         </div>
       </div>

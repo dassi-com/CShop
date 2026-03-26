@@ -1,55 +1,50 @@
-import axios from '../config/axios';
+import axiosInstance from '../config/axios'
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://api-final-m259.onrender.com/api'
+export const IMAGE_BASE = BASE_URL.replace('/api', '')
+
+// Construit l'URL complète d'une image
+export const getImageUrl = (imagePath) => {
+  if (!imagePath) return 'https://placehold.co/400x400/1a1a2e/c084fc?text=No+Image'
+  if (imagePath.startsWith('http')) return imagePath
+  const clean = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath
+  return `${IMAGE_BASE}/${clean}`
+}
 
 const productService = {
-  // Récupérer tous les produits
-  getAllProducts: async () => {
-    try {
-      const response = await axios.get('/products');
-      return response; // Déjà formaté par l'intercepteur
-    } catch (error) {
-      throw error;
-    }
+  getAllProducts: async (page = 1) => {
+    const response = await axiosInstance.get(`/products?page=${page}`)
+    return response
   },
 
-  // Récupérer un produit par ID
   getProductById: async (id) => {
-    try {
-      const response = await axios.get(`/products/${id}`);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosInstance.get(`/products/${id}`)
+    return response
   },
 
-  // Créer un produit (admin)
-  createProduct: async (productData) => {
-    try {
-      const response = await axios.post('/products', productData);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+  // Admin - nécessite FormData (multipart/form-data) pour l'image
+  createProduct: async (formData) => {
+    const response = await axiosInstance.post('/products/add-product', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response
   },
 
-  // Mettre à jour un produit (admin)
-  updateProduct: async (id, productData) => {
-    try {
-      const response = await axios.put(`/products/${id}`, productData);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+  // Admin - PUT avec query param _id
+  updateProduct: async (id, formData) => {
+    const response = await axiosInstance.put(
+      `/products/update-product?_id=${id}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+    return response
   },
 
-  // Supprimer un produit (admin)
+  // Admin - DELETE avec query param _id
   deleteProduct: async (id) => {
-    try {
-      const response = await axios.delete(`/products/${id}`);
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  }
-};
+    const response = await axiosInstance.delete(`/products/delete-product?_id=${id}`)
+    return response
+  },
+}
 
-export default productService;
+export default productService

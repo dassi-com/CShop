@@ -1,63 +1,46 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import Hero from '../components/Hero';
-import CarouselBanner from '../components/CarouselBanner';
-import ProductGrid from '../components/ProductGrid';
-import { initialProducts } from '../data/products';
-import axios from 'axios';
-
-const API_URL = 'https://api-final-m259.onrender.com/api';
-const IMAGE_URL = 'https://api-final-m259.onrender.com';
+import React, { useState, useEffect, useCallback } from 'react'
+import Hero from '../components/Hero'
+import CarouselBanner from '../components/CarouselBanner'
+import ProductGrid from '../components/ProductGrid'
+import productService from '../services/productService'
 
 const Home = () => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
-
-  // Transforme le chemin de l'image en URL complète
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) 
-      return 'https://via.placeholder.com/400x400?text=No+Image'; // image par défaut
-    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
-    return `${IMAGE_URL}/${cleanPath}`;
-  };
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [lastUpdate, setLastUpdate] = useState(Date.now())
 
   const loadProducts = useCallback(async () => {
+    setLoading(true)
     try {
-      console.log('🔄 Chargement des produits depuis le serveur...');
-      const response = await axios.get(`${API_URL}/products`);
-
-      let apiProducts = [];
-      if (response.data?.success && response.data?.data) {
-        apiProducts = response.data.data.map(product => ({
-          ...product,
-          image: getImageUrl(product.image)
-        }));
+      const response = await productService.getAllProducts()
+      let apiProducts = []
+      if (response?.success && Array.isArray(response?.data)) {
+        apiProducts = response.data.map(p => ({
+          ...p,
+          id: p._id || p.id,
+          image: productService.getImageUrl ? productService.getImageUrl(p.image) : p.image,
+        }))
       }
-
-      // Combine initialProducts + API
-      const allProducts = [...initialProducts, ...apiProducts];
-
-      console.log(`📦 Total produits: ${allProducts.length}`);
-      setProducts(allProducts);
-      setLoading(false);
-      setLastUpdate(Date.now());
+      setProducts(apiProducts)
+      setLastUpdate(Date.now())
     } catch (error) {
-      console.error('❌ Erreur chargement produits depuis API:', error);
-      setProducts(initialProducts);
-      setLoading(false);
+      console.error('Erreur chargement produits:', error)
+      setProducts([])
+    } finally {
+      setLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+    loadProducts()
+  }, [loadProducts])
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="loading loading-spinner loading-lg text-fuchsia-300"></div>
       </div>
-    );
+    )
   }
 
   return (
@@ -70,8 +53,8 @@ const Home = () => {
           <div className="flex justify-between items-center mb-10">
             <h2 className="text-3xl font-bold text-fuchsia-300">Nos Produits</h2>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-400">{products.length} produits</span>
-              <button 
+              <span className="text-sm text-gray-400">{products.length} produit{products.length !== 1 ? 's' : ''}</span>
+              <button
                 className="btn btn-sm btn-ghost text-fuchsia-300 hover:bg-fuchsia-300/10"
                 onClick={loadProducts}
                 title="Rafraîchir"
@@ -94,12 +77,12 @@ const Home = () => {
           )}
 
           <div className="text-center mt-4 text-xs text-gray-500">
-            Dernière mise à jour: {new Date(lastUpdate).toLocaleTimeString()}
+            Dernière mise à jour : {new Date(lastUpdate).toLocaleTimeString('fr-FR')}
           </div>
         </section>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Home;
+export default Home

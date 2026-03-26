@@ -1,70 +1,54 @@
-import axios from 'axios';
+import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://api-final-m259.onrender.com/api';
-
-// 🔎 Vérifier si la variable d'environnement fonctionne
-console.log("API URL utilisée :", BASE_URL);
-
-const TIMEOUT = 30000; 
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://api-final-m259.onrender.com/api'
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: TIMEOUT,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Accept: 'application/json',
   },
-});
+})
 
+// Injecte automatiquement le token JWT dans chaque requête
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+    const token = localStorage.getItem('token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
   },
   (error) => Promise.reject(error)
-);
+)
 
+// Déballes la réponse + gère les erreurs globales
 axiosInstance.interceptors.response.use(
-  (response) => {
-    return response.data;
-  },
+  (response) => response.data,
   (error) => {
-
-    // Gestion des erreurs de timeout
     if (error.code === 'ECONNABORTED') {
       return Promise.reject({
-        message: 'Le serveur met trop de temps à répondre. Veuillez réessayer.',
-        status: 'TIMEOUT_ERROR'
-      });
+        message: 'Le serveur met trop de temps à répondre. Réessayez.',
+        status: 'TIMEOUT_ERROR',
+      })
     }
-
-    // Gestion des erreurs 401
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-
-      console.log('Session expirée - utilisateur déconnecté');
-
-      // événement personnalisé
-      window.dispatchEvent(new Event('unauthorized'));
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.dispatchEvent(new Event('unauthorized'))
     }
-
     return Promise.reject({
       message: error.response?.data?.message || 'Erreur de connexion au serveur',
       status: error.response?.status || 'NETWORK_ERROR',
-      data: error.response?.data
-    });
+      data: error.response?.data,
+    })
   }
-);
+)
 
 export const api = {
   get: (url, config) => axiosInstance.get(url, config),
   post: (url, data, config) => axiosInstance.post(url, data, config),
   put: (url, data, config) => axiosInstance.put(url, data, config),
   delete: (url, config) => axiosInstance.delete(url, config),
-};
+}
 
-export default axiosInstance;
+export default axiosInstance

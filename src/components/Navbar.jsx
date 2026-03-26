@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Star, LogIn, UserPlus } from 'lucide-react'
+import { ShoppingCart, LogIn, UserPlus, LayoutDashboard } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useCart } from '../context/CartContext'  // ← Déjà importé
+import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import LoginModal from '../modals/LoginModal'
 import RegisterModal from '../modals/RegisterModal'
 
 const Navbar = () => {
-  const { getCartCount, clearCart } = useCart()  // ← AJOUTE clearCart ici
-  const { user, logout } = useAuth()
+  const { getCartCount, clearCart } = useCart()
+  const { user, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
+
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showRegisterModal, setShowRegisterModal] = useState(false)
   const [cartAnimation, setCartAnimation] = useState(false)
   const cartCount = getCartCount()
 
-  // Trigger cart animation when item is added
   useEffect(() => {
     if (cartCount > 0) {
       setCartAnimation(true)
@@ -25,41 +25,22 @@ const Navbar = () => {
     }
   }, [cartCount])
 
-  // ✅ Fonction sécurisée pour obtenir l'initiale de l'utilisateur
   const getUserInitial = () => {
     if (!user) return '?'
-    
-    if (user.name && typeof user.name === 'string' && user.name.length > 0) {
-      return user.name.charAt(0).toUpperCase()
-    }
-    
-    if (user.email && typeof user.email === 'string' && user.email.length > 0) {
-      return user.email.charAt(0).toUpperCase()
-    }
-    
+    if (user.name?.length > 0) return user.name.charAt(0).toUpperCase()
+    if (user.email?.length > 0) return user.email.charAt(0).toUpperCase()
     return 'U'
   }
 
-  // ✅ Fonction sécurisée pour obtenir le nom complet de l'utilisateur
   const getUserName = () => {
     if (!user) return 'Utilisateur'
-    
-    if (user.name && typeof user.name === 'string' && user.name.trim() !== '') {
-      return user.name
-    }
-    
-    if (user.email && typeof user.email === 'string') {
-      const emailName = user.email.split('@')[0]
-      return emailName || 'Utilisateur'
-    }
-    
-    return 'Utilisateur'
+    return user.name?.trim() || user.email?.split('@')[0] || 'Utilisateur'
   }
 
   const handleLogout = () => {
-    clearCart()    // ← AJOUTE cette ligne pour vider le panier
-    logout()       // ← Déconnexion
-    navigate('/')  // ← Redirection
+    clearCart()
+    logout()
+    navigate('/')
   }
 
   return (
@@ -67,27 +48,20 @@ const Navbar = () => {
       <div className="navbar bg-base-100 shadow-lg px-4 md:px-8 fixed top-0 left-0 right-0 z-50">
         <div className="navbar-start">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-fuchsia-300">CShop</span>
+            <span className="text-2xl font-bold text-fuchsia-400">CShop</span>
           </Link>
         </div>
-        
+
         <div className="navbar-center hidden sm:flex">
-          <Link to="/" className="btn btn-ghost btn-sm">
-            Home
-          </Link>
+          <Link to="/" className="btn btn-ghost btn-sm">Acceuil</Link>
         </div>
-        
+
         <div className="navbar-end gap-2">
-          {/* Mobile menu - Home link for small screens */}
-          <Link to="/" className="btn btn-ghost btn-sm sm:hidden">
-            Home
-          </Link>
-          
+          <Link to="/" className="btn btn-ghost btn-sm sm:hidden">Acceuil</Link>
+
+          {/* Panier */}
           <Link to="/cart" className="btn btn-ghost btn-circle relative">
-            <motion.div
-              animate={cartAnimation ? { scale: [1, 1.3, 1] } : {}}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div animate={cartAnimation ? { scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.3 }}>
               <ShoppingCart className="w-5 h-5" />
             </motion.div>
             {cartCount > 0 && (
@@ -96,34 +70,31 @@ const Navbar = () => {
               </span>
             )}
           </Link>
-          
+
           {user ? (
             <div className="dropdown dropdown-end">
               <label tabIndex={0} className="btn btn-ghost btn-circle avatar">
-                <div className="w-8 rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm">
                   {getUserInitial()}
                 </div>
               </label>
               <ul tabIndex={0} className="mt-3 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 z-50 border border-fuchsia-500/20">
-                <li className="menu-header p-2">
-                  <span className="text-sm opacity-70">Connecté en tant que</span>
-                  <span className="font-bold text-fuchsia-500">{getUserName()}</span>
+                <li className="p-2">
+                  <span className="text-xs text-gray-500">Connecté en tant que</span>
+                  <span className="font-bold text-fuchsia-500 text-sm">{getUserName()}</span>
                 </li>
-                
-                {user?.role === 'admin' && (
+
+                {isAdmin && (
                   <li>
-                    <Link to="/admin" className="text-fuchsia-500 hover:bg-fuchsia-500/10">
-                      <span className="text-fuchsia-500">⚡</span>
+                    <Link to="/admin" className="text-fuchsia-500 hover:bg-fuchsia-500/10 flex items-center gap-2">
+                      <LayoutDashboard className="w-4 h-4" />
                       Panneau Admin
                     </Link>
                   </li>
                 )}
-                
+
                 <li>
-                  <button 
-                    onClick={handleLogout} 
-                    className="text-red-500 hover:bg-red-500/10 w-full text-left"
-                  >
+                  <button onClick={handleLogout} className="text-red-500 hover:bg-red-500/10 w-full text-left">
                     Déconnexion
                   </button>
                 </li>
@@ -131,46 +102,33 @@ const Navbar = () => {
             </div>
           ) : (
             <>
-              <button 
-                onClick={() => setShowLoginModal(true)}
-                className="btn btn-ghost btn-sm gap-1"
-                data-login-button
-              >
+              <button onClick={() => setShowLoginModal(true)} className="btn btn-ghost btn-sm gap-1">
                 <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline">Login</span>
+                <span className="hidden sm:inline">Connexion</span>
               </button>
-              <button 
-                onClick={() => setShowRegisterModal(true)}
-                className="btn btn-primary btn-sm gap-1 bg-fuchsia-300 hover:bg-fuchsia-400 border-none"
-                data-register-button
-              >
+              <button onClick={() => setShowRegisterModal(true)} className="btn btn-primary btn-sm gap-1 bg-fuchsia-500 hover:bg-fuchsia-600 border-none">
                 <UserPlus className="w-4 h-4" />
-                <span className="hidden sm:inline">Register</span>
+                <span className="hidden sm:inline">Inscription</span>
               </button>
             </>
           )}
         </div>
       </div>
 
+      {/* Espaceur */}
       <div className="h-16"></div>
 
       <AnimatePresence>
         {showLoginModal && (
-          <LoginModal 
-            onClose={() => setShowLoginModal(false)} 
-            onOpenRegister={() => {
-              setShowLoginModal(false)
-              setShowRegisterModal(true)
-            }}
+          <LoginModal
+            onClose={() => setShowLoginModal(false)}
+            onOpenRegister={() => { setShowLoginModal(false); setShowRegisterModal(true) }}
           />
         )}
         {showRegisterModal && (
-          <RegisterModal 
+          <RegisterModal
             onClose={() => setShowRegisterModal(false)}
-            onOpenLogin={() => {
-              setShowRegisterModal(false)
-              setShowLoginModal(true)
-            }}
+            onOpenLogin={() => { setShowRegisterModal(false); setShowLoginModal(true) }}
           />
         )}
       </AnimatePresence>

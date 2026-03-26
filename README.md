@@ -1,16 +1,67 @@
-# React + Vite
+# CShop — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend React + DaisyUI connecté à **api-final** (Node.js / Express / MongoDB).
 
-Currently, two official plugins are available:
+## Stack
+- React 19 + Vite
+- TailwindCSS + DaisyUI
+- Framer Motion
+- Axios
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Installation
 
-## React Compiler
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Configuration
 
-## Expanding the ESLint configuration
+Créer un fichier `.env` à la racine :
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```env
+VITE_API_URL=https://api-final-m259.onrender.com/api
+```
+
+## Lancement
+
+```bash
+npm run dev
+```
+
+## Build (Vercel)
+
+```bash
+npm run build
+```
+
+## Variables d'environnement Vercel
+
+| Variable | Valeur |
+|---|---|
+| `VITE_API_URL` | URL de l'API déployée sur Render |
+
+## Fonctionnalités
+
+- 🛍️ Catalogue produits depuis l'API MongoDB
+- 🛒 Panier persistant (localStorage)
+- 🔐 Auth JWT (login / register / logout)
+- 👑 Dashboard admin (CRUD produits, upload image)
+- 💳 Paiement CinetPay (Mobile Money XAF)
+- ✅ Détection automatique du rôle admin depuis l'API
+
+## Endpoints API utilisés
+
+| Méthode | Route | Description |
+|---|---|---|
+| POST | `/auth/register` | Inscription |
+| POST | `/auth/login` | Connexion → JWT |
+| POST | `/auth/logout` | Déconnexion |
+| GET | `/users/:id` | Profil + rôles |
+| GET | `/products` | Liste produits |
+| GET | `/products/:id` | Détail produit |
+| POST | `/products/add-product` | Créer (admin) |
+| PUT | `/products/update-product?_id=` | Modifier (admin) |
+| DELETE | `/products/delete-product?_id=` | Supprimer (admin) |
+| POST | `/orders` | Créer commande |
+| GET | `/orders` | Mes commandes |
+| POST | `/payments/cinetpay/initiate` | Initier paiement |

@@ -1,11 +1,13 @@
 export const calculateSubtotal = (price, quantity) => {
-  return (price * quantity).toFixed(2)
+  return price * quantity
 }
 
 export const calculateTotal = (items) => {
-  return items.reduce((total, item) => total + (item.price * item.quantity), 0).toFixed(2)
+  return items.reduce((total, item) => total + (item.price * item.quantity), 0)
 }
 
+// Format FCFA (pas de décimales)
 export const formatPrice = (price) => {
-  return `fcfa${parseFloat(price).toFixed(2)}`
+  const num = typeof price === 'string' ? parseFloat(price) : price
+  return `${Math.round(num).toLocaleString('fr-FR')} FCFA`
 }

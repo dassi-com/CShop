@@ -1,41 +1,29 @@
-import axios from '../config/axios';
+import axiosInstance from '../config/axios'
 
 const authService = {
-  // Inscription
   register: async (userData) => {
-    try {
-      const response = await axios.post('/auth/register', userData);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosInstance.post('/auth/register', userData)
+    return response
   },
 
-  // Connexion
   login: async (credentials) => {
-    try {
-      const response = await axios.post('/auth/login', credentials);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await axiosInstance.post('/auth/login', credentials)
+    return response
   },
 
-  // Déconnexion
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  logout: async () => {
+    try {
+      await axiosInstance.post('/auth/logout')
+    } catch {}
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
   },
 
-  // Récupérer le profil utilisateur
-  getProfile: async () => {
-    try {
-      const response = await axios.get('/user/profile');
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  }
-};
+  // Récupère le profil complet depuis GET /api/users/:id (avec roles peuplés)
+  getUserById: async (userId) => {
+    const response = await axiosInstance.get(`/users/${userId}`)
+    return response
+  },
+}
 
-export default authService;
+export default authService
