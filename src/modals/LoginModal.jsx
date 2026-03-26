@@ -55,22 +55,30 @@ const LoginModal = ({ onClose, onOpenRegister }) => {
       const token = response.token
       const decoded = decodeToken(token)
 
-      // 2. Récupérer le profil complet (name + roles) depuis l'API
+      // 2. Préparer userData minimal d'abord
       let userData = { id: decoded?.userId, email, name: email.split('@')[0], roles: [] }
+      
+      // 3. Sauvegarder le token AVANT d'appeler l'API (important pour l'intercepteur axios)
+      login(userData, token)
+
+      // 4. Récupérer le profil complet (name + roles) depuis l'API maintenant que le token est sauvé
       try {
         const profile = await authService.getUserById(decoded?.userId)
-        userData = {
-          id: profile._id || profile.id,
-          _id: profile._id || profile.id,
-          name: profile.name || email.split('@')[0],
-          email: profile.email || email,
-          roles: profile.roles || [],
+        if (profile) {
+          userData = {
+            id: profile._id || profile.id,
+            _id: profile._id || profile.id,
+            name: profile.name || email.split('@')[0],
+            email: profile.email || email,
+            roles: profile.roles || [],
+          }
+          // Mettre à jour le user dans le context avec les données complètes
+          login(userData, token)
         }
       } catch {
-        // Profil inaccessible → continuer avec données minimales
+        // Profil inaccessible → continuer avec données minimales (c'est OK)
       }
 
-      login(userData, token)
       onClose()
 
       // Redirection admin si nécessaire

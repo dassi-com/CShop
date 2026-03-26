@@ -74,7 +74,7 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
       const token = loginResponse.token
       const decoded = decodeToken(token)
 
-      // 3. Récupérer le profil complet
+      // 3. Préparer userData minimal d'abord
       let userData = {
         id: decoded?.userId,
         _id: decoded?.userId,
@@ -82,18 +82,26 @@ const RegisterModal = ({ onClose, onOpenLogin }) => {
         name: formData.name,
         roles: [],
       }
+      
+      // 4. Sauvegarder le token AVANT d'appeler l'API
+      login(userData, token)
+
+      // 5. Récupérer le profil complet maintenant que le token est sauvé
       try {
         const profile = await authService.getUserById(decoded?.userId)
-        userData = {
-          id: profile._id || profile.id,
-          _id: profile._id || profile.id,
-          name: profile.name || formData.name,
-          email: profile.email || formData.email,
-          roles: profile.roles || [],
+        if (profile) {
+          userData = {
+            id: profile._id || profile.id,
+            _id: profile._id || profile.id,
+            name: profile.name || formData.name,
+            email: profile.email || formData.email,
+            roles: profile.roles || [],
+          }
+          // Mettre à jour le user dans le context avec les données complètes
+          login(userData, token)
         }
       } catch {}
 
-      login(userData, token)
       onClose()
 
       const isAdmin = userData.roles?.some(r =>
