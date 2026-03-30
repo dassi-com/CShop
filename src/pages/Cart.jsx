@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Trash2, Plus, Minus, ArrowLeft, CreditCard,
@@ -28,10 +28,9 @@ const Cart = () => {
     deliveryTime: 'standard',
   })
 
-  const handleCustomerInfoChange = useCallback((e) => {
-    const { name, value } = e.target
-    setCustomerInfo(prev => ({ ...prev, [name]: value }))
-  }, [])
+  const handleCustomerInfoChange = (e) => {
+    setCustomerInfo({ ...customerInfo, [e.target.name]: e.target.value })
+  }
 
   const validateCustomerInfo = () => {
     if (!customerInfo.fullName.trim()) return 'Nom complet requis'
