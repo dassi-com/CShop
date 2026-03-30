@@ -18,21 +18,31 @@ const normalizeProduct = (product) => ({
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([])
+  const [isLoaded, setIsLoaded] = useState(false)
 
+  // 🔑 Charger le panier depuis localStorage au montage (une seule fois)
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart')
-    if (savedCart) {
-      try {
-        setCartItems(JSON.parse(savedCart))
-      } catch {
-        localStorage.removeItem('cart')
+    try {
+      const savedCart = localStorage.getItem('cart')
+      if (savedCart) {
+        const parsed = JSON.parse(savedCart)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCartItems(parsed)
+        }
       }
+    } catch (error) {
+      console.error('[CartContext] Erreur loading cart:', error)
+      localStorage.removeItem('cart')
     }
+    setIsLoaded(true)
   }, [])
 
+  // 🔑 Sauvegarder UNIQUEMENT quand les items changent (après le chargement initial)
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems))
-  }, [cartItems])
+    if (isLoaded) {
+      localStorage.setItem('cart', JSON.stringify(cartItems))
+    }
+  }, [cartItems, isLoaded])
 
   const addToCart = (product) => {
     const normalized = normalizeProduct(product)
