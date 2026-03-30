@@ -54,7 +54,10 @@ const ProductCard = ({ product }) => {
         <div className="card-actions justify-end mt-4">
           <motion.button
             className="btn btn-primary btn-sm bg-fuchsia-500 hover:bg-fuchsia-600 border-none text-white"
-            onClick={() => addToCart(product)}
+            onClick={() => {
+              console.log('[ProductCard] Produit à ajouter:', product, 'ID:', product._id || product.id)
+              addToCart(product)
+            }}
             whileTap={{ scale: 0.95 }}
           >
             <ShoppingCart className="w-4 h-4 mr-1" />
